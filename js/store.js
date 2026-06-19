@@ -4,7 +4,7 @@
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, GRUPOS } from './config.js';
 import { demoData } from './seed.js';
 import { uid } from './util.js';
-import { cloudEnabled, cloudLoad, cloudSave } from './cloud.js';
+import { cloudEnabled, cloudLoad, cloudSave, cloudSubscribe } from './cloud.js';
 
 const LS_KEY = 'mapa_financeiro_mvp_v2';
 
@@ -74,26 +74,36 @@ export function save() {
 
 // ---- Sincronização com a nuvem (Supabase), se configurada -----------------
 let _cloudTimer = null;
+let _lastLocalSave = 0;
 function scheduleCloud() {
   if (!cloudEnabled()) return;
   clearTimeout(_cloudTimer);
-  _cloudTimer = setTimeout(() => cloudSave(root), 800); // debounce
+  _cloudTimer = setTimeout(() => { _lastLocalSave = Date.now(); cloudSave(root); }, 800); // debounce
 }
 
-// Chamado no boot: se a nuvem estiver ligada, carrega o estado de lá (ou sobe o atual).
+// Aplica um estado vindo da nuvem ao estado local.
+function aplicarRemoto(remote) {
+  if (!remote || !Array.isArray(remote.companies) || !remote.companies.length) return;
+  root = remote;
+  root.companies.forEach(c => { c.ui = { ...defaultUI(null), ...(c.ui || {}) }; });
+  if (!root.companies.find(c => c.id === root.activeId)) root.activeId = root.companies[0].id;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
+  emit();
+}
+
+// Chamado no boot: carrega o estado da nuvem (ou sobe o atual) e liga o sync ao vivo.
 export async function initCloud() {
   if (!cloudEnabled()) return false;
   try {
     const remote = await cloudLoad();
-    if (remote && Array.isArray(remote.companies) && remote.companies.length) {
-      root = remote;
-      root.companies.forEach(c => { c.ui = { ...defaultUI(null), ...(c.ui || {}) }; });
-      if (!root.companies.find(c => c.id === root.activeId)) root.activeId = root.companies[0].id;
-      try { localStorage.setItem(LS_KEY, JSON.stringify(root)); } catch (e) {}
-      emit();
-    } else {
-      await cloudSave(root); // primeira vez: sobe o estado atual (demo)
-    }
+    if (remote && Array.isArray(remote.companies) && remote.companies.length) aplicarRemoto(remote);
+    else await cloudSave(root); // primeira vez: sobe o estado atual (demo)
+
+    // Sync em tempo real entre dispositivos (ignora o "eco" da nossa própria gravação).
+    cloudSubscribe((remoteData) => {
+      if (Date.now() - _lastLocalSave < 2000) return;
+      aplicarRemoto(remoteData);
+    });
     return true;
   } catch (e) { console.warn('[cloud] init:', e); return false; }
 }

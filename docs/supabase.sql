@@ -20,3 +20,10 @@ create policy "validacao_anon_rw"
   to anon
   using (true)
   with check (true);
+
+-- Habilita o sync em tempo real (atualiza outras telas abertas sem recarregar).
+do $$
+begin
+  alter publication supabase_realtime add table app_state;
+exception when duplicate_object then null;
+end $$;

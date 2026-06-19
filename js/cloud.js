@@ -50,3 +50,17 @@ export async function cloudSave(state) {
     return true;
   } catch (e) { console.warn('[cloud] save exception:', e); return false; }
 }
+
+// Sync ao vivo: chama onChange(data) sempre que o registro mudar em OUTRO dispositivo.
+export async function cloudSubscribe(onChange) {
+  try {
+    const c = await getClient();
+    if (!c) return null;
+    const channel = c.channel('app_state_rt')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'app_state', filter: `id=eq.${ROW_ID}` },
+        (payload) => { if (payload.new && payload.new.data) onChange(payload.new.data); })
+      .subscribe();
+    return channel;
+  } catch (e) { console.warn('[cloud] subscribe exception:', e); return null; }
+}

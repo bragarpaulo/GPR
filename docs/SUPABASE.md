@@ -23,6 +23,9 @@ No projeto: **Settings (engrenagem) → API**. Copie e me mande:
 
 ## Como funciona / limites (validação)
 - O app guarda **todo o estado** (todas as empresas) em um único registro JSON na tabela `app_state`.
+- **Persistência automática:** não há botão de salvar — cada alteração grava sozinha (debounce ~0,8s).
+- **Tempo real:** com o Realtime habilitado (o SQL já faz isso), uma edição num dispositivo
+  atualiza as outras telas abertas **sem recarregar**.
 - **Sem login ainda:** todos que abrirem o link compartilham o mesmo dado (last-write-wins).
   Ótimo para validar; no banco final entra autenticação por usuário/empresa.
 - Continua havendo cópia local (`localStorage`) como cache/fallback offline.
