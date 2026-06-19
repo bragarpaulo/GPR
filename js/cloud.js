@@ -7,8 +7,8 @@
 //  2. SQL Editor -> rode o conteúdo de docs/supabase.sql (cria a tabela app_state)
 //  3. Settings > API -> copie "Project URL" e a chave "anon public" e cole abaixo.
 
-export const SUPABASE_URL = 'COLE_AQUI_A_URL_DO_PROJETO';      // ex.: https://abcd1234.supabase.co
-export const SUPABASE_ANON_KEY = 'COLE_AQUI_A_CHAVE_ANON';     // chave "anon public" (pode ser pública)
+export const SUPABASE_URL = 'https://qdioqeejcneijctotyft.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_v1Cfux-Urd6Jd2peZBtmEg_BPNc8s4L'; // chave publishable (pública, segura no navegador)
 
 const ROW_ID = 'default'; // documento único compartilhado (validação, sem login)
 
