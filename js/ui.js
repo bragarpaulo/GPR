@@ -82,4 +82,28 @@ export function seg(name, opts, active) {
   return `<div class="seg" data-seg="${name}">` + opts.map(o => `<button class="${o.val === active ? 'active' : ''}" data-seg-val="${o.val}">${esc(o.label)}</button>`).join('') + `</div>`;
 }
 
+// Barra de exportação (Imprimir/PDF + CSV).
+export function exportToolbar() {
+  return `<div class="toolbar no-print" style="justify-content:flex-end;gap:8px">
+    <button class="btn btn-sm" data-export="print">🖨 Imprimir / PDF</button>
+    <button class="btn btn-sm" data-export="csv">⬇ Exportar CSV</button></div>`;
+}
+export function wireExport(container, filename = 'gpr') {
+  container.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-export]'); if (!b) return;
+    if (b.dataset.export === 'print') { window.print(); return; }
+    const tbl = container.querySelector('table'); if (!tbl) return;
+    const csv = [...tbl.querySelectorAll('tr')].map(tr =>
+      [...tr.querySelectorAll('th,td')].map(cell => {
+        const f = cell.querySelector('input,select');
+        const v = f ? (f.tagName === 'SELECT' ? f.options[f.selectedIndex]?.text : f.value) : cell.textContent;
+        return '"' + String(v ?? '').trim().replace(/"/g, '""') + '"';
+      }).join(';')
+    ).join('\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = filename + '.csv'; a.click(); URL.revokeObjectURL(a.href);
+  });
+}
+
 export { fmtBRL, fmtBRL0, fmtPct };

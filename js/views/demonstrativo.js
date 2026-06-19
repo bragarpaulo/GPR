@@ -1,7 +1,7 @@
 // views/demonstrativo.js — renderizador compartilhado da DRE e da DFC.
 import { getState, renomearCategoria } from '../store.js';
 import { GRUPOS } from '../config.js';
-import { pageHead, thMeses } from '../ui.js';
+import { pageHead, thMeses, exportToolbar, wireExport } from '../ui.js';
 import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 
 const GTITULO = Object.fromEntries(GRUPOS.map(g => [g.id, g.titulo]));
@@ -63,6 +63,7 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
 
   container.innerHTML = `
     ${pageHead(titulo, sub)}
+    ${exportToolbar()}
     <div class="table-wrap">
       <table>
         <thead><tr><th style="min-width:280px">Grupo / Categoria</th>${thMeses(anoAtivo(s))}</tr></thead>
@@ -75,4 +76,5 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
     const t = ev.target;
     if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
   });
+  wireExport(container, titulo.split(' —')[0].trim());
 }

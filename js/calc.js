@@ -14,12 +14,12 @@ export function statusVenda(v) {
   return STATUS_VENDA.PREVISTO;
 }
 export function statusDespesa(d) {
-  if (!d.dataPagamento) return '';
-  if (d.pago) return STATUS_DESPESA.PAGO;
-  const dp = parseISO(d.dataPagamento), hj = hoje();
-  if (!dp) return '';
-  if (dp > hj) return STATUS_DESPESA.APAGAR;
-  if (dp.getTime() === hj.getTime()) return STATUS_DESPESA.HOJE;
+  if (d.dataPagamentoReal) return STATUS_DESPESA.PAGO;
+  if (!d.dataVencimento) return '';
+  const dv = parseISO(d.dataVencimento), hj = hoje();
+  if (!dv) return '';
+  if (dv > hj) return STATUS_DESPESA.APAGAR;
+  if (dv.getTime() === hj.getTime()) return STATUS_DESPESA.HOJE;
   return STATUS_DESPESA.ATRASADO;
 }
 export function vendaDerivada(v) {
@@ -28,8 +28,10 @@ export function vendaDerivada(v) {
   return { ...v, mesVenda, mesAnoRecebimento: mesAnoRec, valorAVista: (mesVenda && mesVenda === mesAnoRec) ? num(v.valor) : 0, status: statusVenda(v) };
 }
 export function despesaDerivada(d) {
-  const mesPg = mesAno(d.dataPagamento);
-  return { ...d, mesPagamento: mesPg, mesSePago: d.pago ? mesPg : '', valorSePago: d.pago ? num(d.valor) : '', status: statusDespesa(d) };
+  const pago = !!d.dataPagamentoReal;
+  const mesPg = mesAno(d.dataPagamentoReal);       // caixa: mês do pagamento real
+  const mesVenc = mesAno(d.dataVencimento);        // previsão: mês do vencimento
+  return { ...d, pago, mesVencimento: mesVenc, mesPagamento: mesPg, mesSePago: pago ? mesPg : '', valorSePago: pago ? num(d.valor) : '', status: statusDespesa(d) };
 }
 export function vendasDerivadas(s) { return s.vendas.map(vendaDerivada); }
 export function despesasDerivadas(s) { return s.despesas.map(despesaDerivada); }
@@ -90,7 +92,7 @@ export function calcFluxo(s) {
   const prevIn = new Set([STATUS_VENDA.PREVISTO, STATUS_VENDA.HOJE, STATUS_VENDA.ATRASADO]);
   const prevOut = new Set([STATUS_DESPESA.APAGAR, STATUS_DESPESA.HOJE, STATUS_DESPESA.ATRASADO]);
   const entradasPrev = cols.map(k => vd.reduce((a, v) => a + (prevIn.has(v.status) && v.mesAnoRecebimento === k ? num(v.valor) : 0), 0));
-  const saidasPrev = cols.map(k => dd.reduce((a, d) => a + (prevOut.has(d.status) && d.mesPagamento === k ? num(d.valor) : 0), 0));
+  const saidasPrev = cols.map(k => dd.reduce((a, d) => a + (prevOut.has(d.status) && d.mesVencimento === k ? num(d.valor) : 0), 0));
   const saldoPrevisto = cols.map((_, i) => saldoConta[i] + entradasPrev[i] - saidasPrev[i]);
   return { cols, saldoInicial, entradas, saidas, resultado, saldoConta, entradasPrev, saidasPrev, saldoPrevisto, saldoInicialAno };
 }
@@ -171,6 +173,65 @@ export function calcControleMetas(s) {
   return { ano, elapsed, mesLabel: mx.mesLabel, receita, lucro, despesas, canais: mx.canais };
 }
 
+// ===== Aging (entradas/saídas por prazo D+) ===============================
+const AGING_BUCKETS = [
+  { key: 'atrasado', label: 'Atrasado', test: d => d < 0 },
+  { key: 'hoje', label: 'Hoje', test: d => d === 0 },
+  { key: 'd1', label: 'D+1', test: d => d === 1 },
+  { key: 'd2', label: 'D+2', test: d => d === 2 },
+  { key: 'd3', label: 'D+3', test: d => d === 3 },
+  { key: 'd4', label: 'D+4', test: d => d === 4 },
+  { key: 'd5', label: 'D+5', test: d => d === 5 },
+  { key: 'd7', label: 'D+6/7', test: d => d >= 6 && d <= 7 },
+  { key: 'd15', label: 'D+8/15', test: d => d >= 8 && d <= 15 },
+  { key: 'd30', label: 'D+16/30', test: d => d >= 16 && d <= 30 },
+  { key: 'outros', label: 'Outros meses', test: d => d > 30 },
+];
+const isoOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+export function calcAging(s) {
+  const hj = hoje();
+  const vd = vendasDerivadas(s), dd = despesasDerivadas(s);
+  const diasAte = (iso) => { const d = parseISO(iso); return d ? Math.round((d - hj) / 86400000) : null; };
+  const mesAtual = `${MESES[hj.getMonth()]}/${hj.getFullYear()}`;
+  function bucketize(items, isReal, realMonth, dateField) {
+    const r = { realizadoMes: 0 }; AGING_BUCKETS.forEach(b => r[b.key] = 0);
+    for (const it of items) {
+      if (isReal(it)) { if (realMonth(it) === mesAtual) r.realizadoMes += num(it.valor); continue; }
+      const di = diasAte(it[dateField]); if (di === null) continue;
+      const b = AGING_BUCKETS.find(b => b.test(di)); if (b) r[b.key] += num(it.valor);
+    }
+    r.totalPrevisto = AGING_BUCKETS.reduce((a, b) => a + r[b.key], 0);
+    return r;
+  }
+  return {
+    buckets: AGING_BUCKETS, mesAtual,
+    entradas: bucketize(vd, v => v.status === STATUS_VENDA.CONCLUIDO, v => mesAno(v.dataRecebimento), 'dataVencimento'),
+    saidas: bucketize(dd, d => d.pago, d => mesAno(d.dataPagamentoReal), 'dataVencimento'),
+  };
+}
+
+// Projeção de caixa diária (próximos N dias).
+export function calcProjecao(s, ndias = 30) {
+  const hj = hoje();
+  const vd = vendasDerivadas(s), dd = despesasDerivadas(s);
+  const base = s.contas.reduce((a, c) => a + num(c.saldo), 0)
+    + vd.filter(v => v.status === STATUS_VENDA.CONCLUIDO).reduce((a, v) => a + num(v.valor), 0)
+    - dd.filter(d => d.pago).reduce((a, d) => a + num(d.valor), 0);
+  const labels = [], saldo = [];
+  let acc = base;
+  for (let i = 0; i <= ndias; i++) {
+    const dia = new Date(hj.getFullYear(), hj.getMonth(), hj.getDate() + i);
+    const key = isoOf(dia);
+    const inflow = vd.reduce((a, v) => a + (v.status !== STATUS_VENDA.CONCLUIDO && v.dataVencimento === key ? num(v.valor) : 0), 0);
+    const outflow = dd.reduce((a, d) => a + (!d.pago && d.dataVencimento === key ? num(d.valor) : 0), 0);
+    acc += inflow - outflow;
+    labels.push(`${String(dia.getDate()).padStart(2, '0')}/${String(dia.getMonth() + 1).padStart(2, '0')}`);
+    saldo.push(acc);
+  }
+  return { labels, saldo, base };
+}
+
 // ===== Dashboard ==========================================================
 export function calcDashboard(s) {
   const ano = anoAtivo(s);
@@ -204,8 +265,10 @@ export function calcDashboard(s) {
   const contasReceberProx = somaDe(fluxo.entradasPrev, idxAtual + 1, 12);
   const contasPagarMes = fluxo.saidasPrev[idxAtual];
   const contasPagarTotal = somaDe(fluxo.saidasPrev, 0, 12);
-  const saldoProvMes = fluxo.saldoPrevisto[idxAtual];
-  const saldoProvProx = fluxo.saldoPrevisto[11];
+  const contasPagarProx = contasPagarTotal - contasPagarMes;
+  // Saldo Provisionado: Saldo atual +/- previstos (mês atual e próximos).
+  const saldoProvMes = saldoAtual + contasReceberMes - contasPagarMes;
+  const saldoProvProx = saldoProvMes + contasReceberProx - contasPagarProx;
   const inadimplencia = vd.reduce((a, v) => a + (v.status === STATUS_VENDA.ATRASADO && String(v.mesAnoRecebimento).endsWith('/' + ano) ? num(v.valor) : 0), 0);
 
   // Faturamento por canal (período selecionado) com destaque > 20%

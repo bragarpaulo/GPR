@@ -115,6 +115,10 @@ input.money { text-align: right; font-variant-numeric: tabular-nums; }
 .chart-canvas-wrap { position: relative; height: 300px; }
 .total-anual { font-size: 11.5px; color: var(--muted); text-align: right; font-weight: 600; }
 .total-anual b { display: block; color: var(--text); font-size: 13px; }
+.chart-summary { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.chart-summary b { color: var(--text); font-variant-numeric: tabular-nums; margin-right: 5px; font-weight: 700; }
+.chart-summary b.pos { color: var(--green); } .chart-summary b.neg { color: var(--red); }
+.chips [data-mes] { user-select: none; }
 
 /* ---- Segmented control (Tabela/Pizza/Barras) ---- */
 .seg { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px; gap: 2px; }
@@ -133,6 +137,16 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .grp-row td { font-weight: 700; background: #eef2f7; }
 .cat-row td:first-child { padding-left: 20px; color: var(--muted); }
 .row-click { cursor: pointer; }
+
+/* Linha colorida por status (Vendas/Despesas) */
+tr.st-bad > td { background: #fee2e2; }
+tr.st-warn > td { background: #fef3c7; }
+tr.st-info > td { background: #f4f8ff; }
+tr.st-ok > td { background: #f4fbf6; }
+
+/* Cabeçalho fixo (congela ao rolar a tabela longa) */
+.tbl-frozen { max-height: calc(100vh - 240px); overflow: auto; }
+.tbl-frozen thead th { position: sticky; top: 0; z-index: 2; }
 
 /* ---- Badges ---- */
 .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
@@ -205,4 +219,15 @@ tr.drop-after td { box-shadow: inset 0 -2px 0 0 var(--primary); }
   .kpis { grid-template-columns: 1fr; }
   .form-grid { grid-template-columns: 1fr; }
   .hero { padding: 20px; } .hero h1 { font-size: 22px; }
+}
+
+/* ============ IMPRESSÃO ============ */
+@media print {
+  #sidebar, #sidebar-overlay, #topbar, .toolbar, .no-print, .seg, [data-action], [data-export], .chips { display: none !important; }
+  #layout, #main { display: block; }
+  #content { padding: 0 !important; }
+  .table-wrap, .tbl-frozen { max-height: none !important; overflow: visible !important; box-shadow: none !important; border: 1px solid #ccc; }
+  .card { box-shadow: none !important; break-inside: avoid; }
+  body { background: #fff; }
+  th { position: static !important; }
 }

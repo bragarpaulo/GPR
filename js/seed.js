@@ -47,6 +47,7 @@ export function demoData(ano = 2026) {
       valor,
       dataVencimento: dataVenc,
       dataRecebimento: recebido ? dataVenc : '',
+      contaId: ['c_c6', 'c_bb', 'c_esp'][vendas.length % 3],
       obs: '',
     });
   }
@@ -89,6 +90,7 @@ export function demoData(ano = 2026) {
       valor: 15000,
       dataVencimento: p.venc,
       dataRecebimento: p.receb ? p.venc : '',
+      contaId: 'c_c6',
       obs: `Parcela ${i + 1}/3`,
     });
   });
@@ -107,7 +109,7 @@ export function demoData(ano = 2026) {
   function addDespesa(dataPg, mesComp, catId, valor, pago, desc, forn, contaId, forma) {
     despesas.push({
       id: `d_${despesas.length + 1}`,
-      dataPagamento: dataPg,
+      dataVencimento: dataPg,
       mesCompetencia: mesComp,
       descricao: desc,
       categoriaId: catId,
@@ -115,7 +117,7 @@ export function demoData(ano = 2026) {
       fornecedor: forn,
       contaId,
       formaPagamento: forma,
-      pago,
+      dataPagamentoReal: pago ? dataPg : '',
       obs: '',
     });
   }
@@ -157,5 +159,6 @@ export function demoData(ano = 2026) {
     ],
   };
 
-  return { empresa, contas, canais, vendas, despesas, orcamento, plataformas };
+  const fornecedoresReg = fornecedores.map((n, i) => ({ id: 'forn_' + (i + 1), nome: n }));
+  return { empresa, contas, canais, vendas, despesas, orcamento, plataformas, fornecedores: fornecedoresReg };
 }

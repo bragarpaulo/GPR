@@ -80,10 +80,14 @@ function currentRoute() {
   const h = (location.hash || '').replace('#', '');
   return VIEWS[h] ? h : 'inicio';
 }
+let lastRoute = null;
 function renderView() {
   charts.destroyAll();
   closeNav();
   const route = currentRoute();
+  const sameRoute = route === lastRoute;
+  const scEl = document.scrollingElement || document.documentElement;
+  const sc = scEl.scrollTop;               // preserva scroll em re-render da mesma rota
   const root = document.createElement('div');
   contentEl.replaceChildren(root);
   try { VIEWS[route].render(root); }
@@ -91,6 +95,8 @@ function renderView() {
   navEl.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.route === route));
   empresaEl.textContent = getState().empresa.nome || 'GPR';
   renderTopbar();
+  scEl.scrollTop = sameRoute ? sc : 0;     // mesma rota: mantém posição; nova rota: topo
+  lastRoute = route;
 }
 
 if (!location.hash) location.hash = '#inicio';

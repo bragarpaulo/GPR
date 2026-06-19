@@ -4,6 +4,7 @@ import {
   getState, setEmpresaCampo, addConta, setContaCampo, removerConta, removerContas, reordenarContas,
   addCanal, renomearCanal, setCanalMeta, removerCanal, removerCanais, reordenarCanais,
   renomearCategoria, addCategoria, removerCategoria, removerCategorias, reordenarCategorias,
+  addFornecedor, renomearFornecedor, removerFornecedor, removerFornecedores, reordenarFornecedores,
   addAno, removerAno, setAnoAtivo, GRUPOS,
 } from '../store.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
@@ -67,6 +68,14 @@ export function render(container) {
     </div>`;
   }).join('');
 
+  // ---- Recebedores / Fornecedores ----
+  const fornecedoresRows = s.fornecedores.map(f => `
+    <tr data-row="${f.id}" data-tbl="fornecedores">
+      ${handle(f.id, 'fornecedores')}${chk(f.id, 'fornecedores')}
+      <td><input class="inp-flush" data-forn-id="${f.id}" value="${esc(f.nome)}"></td>
+      <td class="nowrap" style="width:120px">${mover(f.id, 'fornecedores')}<button class="btn btn-sm btn-icon" data-action="rm-forn" data-id="${f.id}">🗑</button></td>
+    </tr>`).join('') || `<tr><td colspan="4" class="empty">Nenhum recebedor cadastrado.</td></tr>`;
+
   container.innerHTML = `
     ${pageHead('Cadastro', 'Empresa, anos, contas, canais e categorias. Arraste pela alça ⠿ para reordenar; marque para excluir vários.')}
 
@@ -104,6 +113,14 @@ export function render(container) {
       <tbody>${canalRows}</tbody>
     </table></div>
 
+    <div class="flex" style="justify-content:space-between;margin:26px 0 10px;flex-wrap:wrap;gap:8px">
+      <div class="section-title" style="margin:0">Recebedores / Fornecedores</div>
+      <div class="flex"><button class="btn btn-sm" data-action="del-sel" data-sel="fornecedores">Excluir selecionados</button>
+      <button class="btn btn-primary btn-sm" data-action="add-forn">+ Adicionar recebedor</button></div>
+    </div>
+    <div class="hint" style="margin-bottom:8px">Aparecem como sugestão no campo "Recebedor" das Despesas.</div>
+    <div class="table-wrap"><table><tbody>${fornecedoresRows}</tbody></table></div>
+
     <div class="section-title">Categorias de despesa (renomear / reordenar / excluir)</div>
     <div class="hint" style="margin-bottom:8px">Renomear/reordenar não quebra os cálculos: tudo usa um ID interno estável.</div>
     ${catGrupos}`;
@@ -114,6 +131,7 @@ export function render(container) {
 function doReorder(tbl, fromId, toId) {
   if (tbl === 'contas') reordenarContas(fromId, toId);
   else if (tbl === 'canais') reordenarCanais(fromId, toId);
+  else if (tbl === 'fornecedores') reordenarFornecedores(fromId, toId);
   else if (tbl.startsWith('cat')) reordenarCategorias(fromId, toId);
 }
 
@@ -127,6 +145,7 @@ function wire(container, ano) {
     else if (t.dataset.canalId && t.dataset.campo === 'nome') renomearCanal(t.dataset.canalId, t.value);
     else if (t.dataset.canalId && t.dataset.mes !== undefined) setCanalMeta(t.dataset.canalId, ano, Number(t.dataset.mes), num(t.value));
     else if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
+    else if (t.dataset.fornId) renomearFornecedor(t.dataset.fornId, t.value);
   });
 
   container.addEventListener('click', (ev) => {
@@ -149,6 +168,8 @@ function wire(container, ano) {
     else if (action === 'rm-canal') removerCanal(id);
     else if (action === 'add-cat') addCategoria(grupo);
     else if (action === 'rm-cat') removerCategoria(id);
+    else if (action === 'add-forn') addFornecedor();
+    else if (action === 'rm-forn') removerFornecedor(id);
     else if (action === 'add-ano') {
       const a = prompt('Adicionar qual ano?', String(ano + 1)); if (!a) return;
       const y = Number(a); if (!y || y < 1900 || y > 3000) { alert('Ano inválido.'); return; }
@@ -160,6 +181,7 @@ function wire(container, ano) {
       if (!confirm(`Excluir ${ids.length} item(ns) selecionado(s)?`)) return;
       if (sel === 'contas') removerContas(ids);
       else if (sel === 'canais') removerCanais(ids);
+      else if (sel === 'fornecedores') removerFornecedores(ids);
       else if (sel.startsWith('cat')) removerCategorias(ids);
     }
   });

@@ -2,8 +2,10 @@
 import { getState, addVenda, duplicarVenda, removerVenda, setVendaCampo, setVendasFiltro } from '../store.js';
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
-import { pageHead, options, badgeVenda, moneyInput } from '../ui.js';
+import { pageHead, options, badgeVenda, moneyInput, exportToolbar, wireExport } from '../ui.js';
 import { esc, num, fmtBRL0 } from '../util.js';
+
+const ROWCLS = { [STATUS_VENDA.CONCLUIDO]: 'st-ok', [STATUS_VENDA.ATRASADO]: 'st-bad', [STATUS_VENDA.HOJE]: 'st-warn', [STATUS_VENDA.PREVISTO]: 'st-info' };
 
 export function render(container) {
   const s = getState();
@@ -15,18 +17,18 @@ export function render(container) {
     const q = filtro.busca.toLowerCase();
     linhas = linhas.filter(v => `${v.pedido} ${v.produto} ${v.cliente}`.toLowerCase().includes(q));
   }
-
   const totalValor = linhas.reduce((a, v) => a + num(v.valor), 0);
 
   const rows = linhas.map(v => `
-    <tr data-id="${v.id}">
+    <tr data-id="${v.id}" class="${ROWCLS[v.status] || ''}">
       <td><input type="date" data-id="${v.id}" data-campo="dataVenda" value="${esc(v.dataVenda)}"></td>
       <td class="derived">${esc(v.mesVenda)}</td>
       <td><input class="inp-flush" style="width:80px" data-id="${v.id}" data-campo="pedido" value="${esc(v.pedido)}"></td>
       <td><select data-id="${v.id}" data-campo="canalId">${options(s.canais, v.canalId, { placeholder: '—' })}</select></td>
       <td><select data-id="${v.id}" data-campo="categoriaReceitaId">${options(s.receitaCategorias, v.categoriaReceitaId)}</select></td>
       <td><input class="inp-flush" style="min-width:120px" data-id="${v.id}" data-campo="produto" value="${esc(v.produto)}"></td>
-      <td><input class="inp-flush" style="min-width:120px" data-id="${v.id}" data-campo="cliente" value="${esc(v.cliente)}"></td>
+      <td><input class="inp-flush" style="min-width:110px" data-id="${v.id}" data-campo="cliente" value="${esc(v.cliente)}"></td>
+      <td><select data-id="${v.id}" data-campo="contaId">${options(s.contas, v.contaId, { placeholder: '—' })}</select></td>
       <td class="num">${moneyInput(v.valor, `data-id="${v.id}" data-campo="valor"`, 120)}</td>
       <td class="num derived">${fmtBRL0(v.valorAVista)}</td>
       <td><input type="date" data-id="${v.id}" data-campo="dataVencimento" value="${esc(v.dataVencimento)}"></td>
@@ -38,10 +40,10 @@ export function render(container) {
         <button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${v.id}">⧉</button>
         <button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-id="${v.id}">🗑</button>
       </td>
-    </tr>`).join('') || `<tr><td colspan="15" class="empty">Nenhuma venda. Clique em “+ Adicionar linha”.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="16" class="empty">Nenhuma venda. Clique em “+ Adicionar linha”.</td></tr>`;
 
   container.innerHTML = `
-    ${pageHead('Lançamento de Vendas', 'Lance 1 linha por recebimento/parcela. Status calculado automaticamente.')}
+    ${pageHead('Lançamento de Vendas', 'Lance 1 linha por recebimento/parcela. Status calculado automaticamente; a linha fica colorida pelo status.')}
     <div class="toolbar">
       <select id="f-status">
         <option value="">Todos os status</option>
@@ -55,15 +57,16 @@ export function render(container) {
       <div class="spacer"></div>
       <span class="hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
     </div>
-    <div class="table-wrap">
+    ${exportToolbar()}
+    <div class="table-wrap tbl-frozen">
       <table>
         <thead><tr>
           <th>Data da Venda</th><th>Mês</th><th>Nº Pedido</th><th>Canal</th><th>Categoria</th>
-          <th>Produto/Pedido</th><th>Cliente</th><th class="num">Valor</th><th class="num">Valor à Vista</th>
+          <th>Produto/Pedido</th><th>Cliente</th><th>Conta</th><th class="num">Valor</th><th class="num">Valor à Vista</th>
           <th>Vencimento</th><th>Mês/Ano Receb.</th><th>Data Recebimento</th><th>Status</th><th>Obs</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="15"><button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button></td></tr></tfoot>
+        <tfoot><tr><td colspan="16"><button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button></td></tr></tfoot>
       </table>
     </div>`;
 
@@ -88,4 +91,5 @@ function wire(container) {
     else if (action === 'dup') duplicarVenda(id);
     else if (action === 'rm') removerVenda(id);
   });
+  wireExport(container, 'Lancamento-Vendas');
 }

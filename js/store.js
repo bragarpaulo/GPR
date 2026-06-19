@@ -57,6 +57,17 @@ function migrarCompany(c) {
   if (!Array.isArray(c.vendas)) c.vendas = [];
   if (!Array.isArray(c.despesas)) c.despesas = [];
   if (!c.plataformas) c.plataformas = { disponiveis: [], aReceber: [] };
+  if (!Array.isArray(c.fornecedores)) c.fornecedores = [];
+
+  // vendas: garantir contaId (banco de recebimento)
+  c.vendas.forEach(v => { if (v.contaId === undefined) v.contaId = ''; });
+  // despesas: migrar pago+dataPagamento -> dataVencimento + dataPagamentoReal
+  c.despesas.forEach(d => {
+    if (d.dataVencimento === undefined) d.dataVencimento = d.dataPagamento || '';
+    if (d.dataPagamentoReal === undefined) d.dataPagamentoReal = d.pago ? (d.dataPagamento || '') : '';
+    if (d.contaId === undefined) d.contaId = '';
+    delete d.pago; delete d.dataPagamento;
+  });
 
   // ui
   c.ui = { ...defaultUI(anoBase), ...(c.ui || {}) };
@@ -205,7 +216,7 @@ function moveById(arr, fromId, toId) {
 // ---- CRUD: Vendas --------------------------------------------------------
 export function novaVenda(base = {}) {
   const s = active();
-  return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', valor: 0, dataVencimento: '', dataRecebimento: '', obs: '', ...base };
+  return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', ...base };
 }
 export function addVenda(base) { update(s => s.vendas.push(novaVenda(base))); }
 export function duplicarVenda(id) { update(s => { const i = s.vendas.findIndex(v => v.id === id); if (i >= 0) s.vendas.splice(i + 1, 0, { ...s.vendas[i], id: uid('v') }); }); }
@@ -215,7 +226,7 @@ export function setVendaCampo(id, campo, valor) { update(s => { const v = s.vend
 // ---- CRUD: Despesas ------------------------------------------------------
 export function novaDespesa(base = {}) {
   const s = active();
-  return { id: uid('d'), dataPagamento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', pago: false, obs: '', ...base };
+  return { id: uid('d'), dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', ...base };
 }
 export function addDespesa(base) { update(s => s.despesas.push(novaDespesa(base))); }
 export function duplicarDespesa(id) { update(s => { const i = s.despesas.findIndex(d => d.id === id); if (i >= 0) s.despesas.splice(i + 1, 0, { ...s.despesas[i], id: uid('d') }); }); }
@@ -229,6 +240,13 @@ export function setCanalMeta(id, ano, mesIdx, valor) { update(s => { const c = s
 export function removerCanal(id) { update(s => { s.canais = s.canais.filter(c => c.id !== id); }); }
 export function removerCanais(ids) { const set = new Set(ids); update(s => { s.canais = s.canais.filter(c => !set.has(c.id)); }); }
 export function reordenarCanais(fromId, toId) { update(s => moveById(s.canais, fromId, toId)); }
+
+// ---- CRUD: Recebedores / Fornecedores ------------------------------------
+export function addFornecedor() { update(s => s.fornecedores.push({ id: uid('forn'), nome: 'Novo recebedor' })); }
+export function renomearFornecedor(id, nome) { update(s => { const f = s.fornecedores.find(x => x.id === id); if (f) f.nome = nome; }); }
+export function removerFornecedor(id) { update(s => { s.fornecedores = s.fornecedores.filter(f => f.id !== id); }); }
+export function removerFornecedores(ids) { const set = new Set(ids); update(s => { s.fornecedores = s.fornecedores.filter(f => !set.has(f.id)); }); }
+export function reordenarFornecedores(fromId, toId) { update(s => moveById(s.fornecedores, fromId, toId)); }
 
 // ---- CRUD: Categorias ----------------------------------------------------
 export function renomearCategoria(id, nome) { update(s => { const c = s.categorias.find(x => x.id === id); if (c) c.nome = nome; }); }

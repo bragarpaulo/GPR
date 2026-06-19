@@ -1,11 +1,10 @@
-// views/fluxo.js — Fluxo de Caixa (mensal + previsto + distribuição + plataformas).
-import {
-  getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber,
-} from '../store.js';
-import { calcFluxo, contasReceberPorCanal } from '../calc.js';
+// views/fluxo.js — Fluxo de Caixa: resumo, projeção, aging, tabela mensal e anexos.
+import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber } from '../store.js';
+import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
-import { pageHead, thMeses, moneyInput } from '../ui.js';
+import { pageHead, thMeses, moneyInput, kpi, kpi2 } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
+import * as charts from '../charts.js';
 
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
@@ -13,12 +12,26 @@ function linha(label, arr, totalVal, cls = '') {
   return `<tr class="${cls}"><td>${esc(label)}</td>${cells}${tot}</tr>`;
 }
 
+function agingTable(titulo, ag, buckets, realLabel) {
+  const rows = buckets.map(b => `<tr ${b.key === 'atrasado' ? 'class="st-bad"' : b.key === 'hoje' ? 'class="st-warn"' : ''}><td>${b.label}</td><td class="num">${fmtBRL0(ag[b.key])}</td></tr>`).join('');
+  return `<div class="card card-pad">
+    <strong>${esc(titulo)}</strong>
+    <div class="table-wrap" style="box-shadow:none;margin-top:8px"><table>
+      <thead><tr><th>Prazo</th><th class="num">Valor</th></tr></thead>
+      <tbody>${rows}
+        <tr class="row-total"><td>Total previsto</td><td class="num">${fmtBRL0(ag.totalPrevisto)}</td></tr>
+        <tr class="st-ok"><td>${esc(realLabel)}</td><td class="num">${fmtBRL0(ag.realizadoMes)}</td></tr>
+      </tbody></table></div></div>`;
+}
+
 export function render(container) {
   const s = getState();
   const ano = anoAtivo(s);
   const f = calcFluxo(s);
+  const d = calcDashboard(s);
+  const ag = calcAging(s);
+  const proj = calcProjecao(s, 30);
   const mesReceber = s.ui.fluxoMesReceber ?? Math.min(new Date().getMonth(), 11);
-
   const sum = (a) => a.reduce((x, y) => x + y, 0);
 
   const body = [
@@ -33,12 +46,10 @@ export function render(container) {
     linha('Saldo Previsto', f.saldoPrevisto, f.saldoPrevisto[11], 'row-total'),
   ].join('');
 
-  // Distribuição de caixa (contas do cadastro)
   const distRows = s.contas.map(c => `<tr><td>${esc(c.nome)}</td><td class="muted">${esc(c.tipo)}</td><td class="num">${fmtBRL0(num(c.saldo))}</td></tr>`).join('')
     || `<tr><td colspan="3" class="empty">Cadastre contas no Cadastro.</td></tr>`;
   const distTotal = s.contas.reduce((a, c) => a + num(c.saldo), 0);
 
-  // Plataformas
   const plataformaTabela = (tipo, titulo, nota) => {
     const list = s.plataformas[tipo] || [];
     const rows = list.map(p => `
@@ -59,7 +70,6 @@ export function render(container) {
       </div></div>`;
   };
 
-  // Contas a receber por canal
   const cr = contasReceberPorCanal(s, mesReceber);
   const crRows = cr.map(x => `<tr><td>${esc(x.canal)}</td><td class="num">${fmtBRL0(x.valor)}</td></tr>`).join('')
     || `<tr><td colspan="2" class="empty">Sem canais cadastrados.</td></tr>`;
@@ -67,12 +77,30 @@ export function render(container) {
   const mesOpts = MESES.map((m, i) => `<option value="${i}" ${mesReceber === i ? 'selected' : ''}>${m}/${ano}</option>`).join('');
 
   container.innerHTML = `
-    ${pageHead('Fluxo de Caixa', `Saldo, entradas/saídas e previsões · ${ano}`)}
+    ${pageHead('Fluxo de Caixa', `Saldo, entradas/saídas, projeção e previsões · ${ano}`)}
+
+    <div class="section-title" style="margin-top:0">Visão de Caixa</div>
+    <div class="grid kpis">
+      ${kpi('Saldo atual', fmtBRL0(d.saldoAtual), { variant: 'k-blue', cls: 'blue' })}
+      ${kpi('Recebimentos', fmtBRL0(d.recebimentos), { variant: 'k-green', cls: 'green' })}
+      ${kpi('Pagamentos', fmtBRL0(d.pagamentos), { variant: 'k-red', cls: 'red' })}
+      ${kpi('Caixa Gerado', fmtBRL0(d.geracaoCaixa), { variant: d.geracaoCaixa >= 0 ? 'k-green' : 'k-red', cls: d.geracaoCaixa >= 0 ? 'green' : 'red' })}
+      ${kpi2('Saldo Provisionado', [['Mês atual', fmtBRL0(d.saldoProvMes)], ['Próximos', fmtBRL0(d.saldoProvProx)]], { variant: 'k-purple' })}
+      ${kpi('Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '' })}
+    </div>
+
+    <div class="section-title">Projeção de caixa (próximos 30 dias)</div>
+    <div class="card chart-box"><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
+
+    <div class="section-title">Previsão por prazo</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+      ${agingTable('Entradas a receber', ag.entradas, ag.buckets, 'Recebido no mês')}
+      ${agingTable('Saídas a pagar', ag.saidas, ag.buckets, 'Pago no mês')}
+    </div>
+
+    <div class="section-title">Fluxo mensal (${ano})</div>
     <div class="table-wrap">
-      <table>
-        <thead><tr><th style="min-width:200px">Fluxo de Caixa</th>${thMeses(ano)}</tr></thead>
-        <tbody>${body}</tbody>
-      </table>
+      <table><thead><tr><th style="min-width:200px">Fluxo de Caixa</th>${thMeses(ano)}</tr></thead><tbody>${body}</tbody></table>
     </div>
 
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-top:18px">
@@ -101,6 +129,7 @@ export function render(container) {
       ${plataformaTabela('aReceber', '2. Valores a receber', 'Ex.: cartão que libera em D+30, boletos em aberto.')}
     </div>`;
 
+  charts.linhaProjecao('ch-proj', proj.labels, proj.saldo);
   wire(container);
 }
 

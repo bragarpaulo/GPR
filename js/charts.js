@@ -59,6 +59,26 @@ export function pizza(id, labels, valores, onClick) {
   }, onClick);
 }
 
+// Meta × Realizado (2 séries de barras).
+export function metaRealChart(id, labels, meta, real) {
+  return make(id, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: 'Meta', data: meta, backgroundColor: '#94A3B8', borderRadius: 4 },
+      { label: 'Realizado', data: real, backgroundColor: '#1D4ED8', borderRadius: 4 },
+    ] }, options: gridOpts('y'),
+  });
+}
+
+// Linha de projeção (saldo no tempo).
+export function linhaProjecao(id, labels, valores) {
+  return make(id, {
+    type: 'line',
+    data: { labels, datasets: [{ label: 'Saldo projetado', data: valores, borderColor: '#1D4ED8', backgroundColor: 'rgba(29,78,216,.12)', fill: true, tension: .25, pointRadius: 1 }] },
+    options: gridOpts('y'),
+  });
+}
+
 // Barras genéricas (horizontal = indexAxis y). Eixo de valor sempre em R$.
 export function barras(id, labels, valores, onClick, horizontal = false) {
   return make(id, {
