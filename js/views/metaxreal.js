@@ -1,8 +1,8 @@
 // views/metaxreal.js — Meta x Realizado da receita por canal (YTD + totais + gráfico).
-import { getState } from '../store.js';
+import { getState, chartLabelOn } from '../store.js';
 import { calcMetaxReal } from '../calc.js';
 import { MESES } from '../config.js';
-import { pageHead, thMeses, exportToolbar, wireExport } from '../ui.js';
+import { pageHead, thMeses, exportToolbar, wireExport, eyeToggle } from '../ui.js';
 import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
 
@@ -44,7 +44,7 @@ export function render(container) {
     <div class="callout">O <strong>% atingido</strong> compara o realizado com a meta do início do ano até ${esc(d.mesLabel)}.</div>
 
     <div class="card chart-box" style="margin-top:14px">
-      <h3>Meta × Realizado (mês a mês)</h3>
+      <h3>Meta × Realizado (mês a mês) ${eyeToggle('ch-mxr', chartLabelOn('ch-mxr'))}</h3>
       <div class="chart-canvas-wrap"><canvas id="ch-mxr"></canvas></div>
     </div>
 
@@ -64,6 +64,6 @@ export function render(container) {
       </table>
     </div>`;
 
-  charts.metaRealChart('ch-mxr', MESES, metaMes, realMes);
+  charts.metaRealChart('ch-mxr', MESES, metaMes, realMes, chartLabelOn('ch-mxr'));
   wireExport(container, 'Meta-x-Real');
 }

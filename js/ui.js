@@ -77,6 +77,11 @@ export function gauge(pct, cor, cap, sub) {
     <div class="gauge-cap">${esc(cap)}</div>${sub ? `<div class="gauge-sub">${esc(sub)}</div>` : ''}`;
 }
 
+// Botão "olhinho" p/ mostrar/ocultar os rótulos no gráfico (valor nas barras, % na pizza).
+export function eyeToggle(id, on, label = 'Valores') {
+  return `<button class="chart-eye no-print ${on ? '' : 'off'}" data-eye="${id}" aria-pressed="${on}" title="${on ? 'Ocultar' : 'Mostrar'} ${label.toLowerCase()} no gráfico">${on ? '👁' : '🙈'} ${esc(label)}</button>`;
+}
+
 // Segmented control (Tabela | Pizza | Barras).
 export function seg(name, opts, active) {
   return `<div class="seg" data-seg="${name}">` + opts.map(o => `<button class="${o.val === active ? 'active' : ''}" data-seg-val="${o.val}">${esc(o.label)}</button>`).join('') + `</div>`;

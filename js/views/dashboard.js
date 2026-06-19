@@ -1,9 +1,9 @@
 // views/dashboard.js — Dashboard GPR (resumo compartilhado + período + widgets + drilldown + export).
 import {
-  getState, setPeriodoMeses, setUiCampo, setDespesasFiltro, setVendasFiltro, setAnoAtivo, getAnos, getAnoAtivo,
+  getState, setPeriodoMeses, setUiCampo, setDespesasFiltro, setVendasFiltro, setAnoAtivo, getAnos, getAnoAtivo, chartLabelOn,
 } from '../store.js';
 import { calcDashboard } from '../calc.js';
-import { pageHead, mesesChips, seg, exportToolbar, wireExport } from '../ui.js';
+import { pageHead, mesesChips, seg, exportToolbar, wireExport, eyeToggle } from '../ui.js';
 import { fmtBRL0, fmtPct, esc } from '../util.js';
 import * as charts from '../charts.js';
 import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
@@ -38,7 +38,8 @@ function widget(titulo, view, data, segName, drillAttr) {
       <thead><tr><th>Item</th><th class="num sortable" data-sort="${segName}">Valor ▼</th><th class="num">% Total</th><th>Part.</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   } else { body = `<div class="chart-canvas-wrap"><canvas id="cv-${segName}"></canvas></div>`; }
-  return `<div class="card chart-box"><h3>${esc(titulo)} ${seguidor}</h3>${body}</div>`;
+  const eye = view === 'tabela' ? '' : eyeToggle(`cv-${segName}`, chartLabelOn(`cv-${segName}`), view === 'pizza' ? '%' : 'Valores');
+  return `<div class="card chart-box"><h3>${esc(titulo)} ${seguidor} ${eye}</h3>${body}</div>`;
 }
 
 export function render(container) {
@@ -71,10 +72,10 @@ export function render(container) {
     <p class="hint" style="margin-top:8px">💡 Clique nos indicadores e gráficos para abrir o detalhe (drilldown).</p>`;
 
   montarChartsResumo(d, (i) => setPeriodoMeses([i]));
-  if (canalView === 'pizza') charts.pizza('cv-canal', canalData.map(c => c.label), canalData.map(c => c.valor), (i) => drillCanal(canalData[i]));
-  else if (canalView === 'barras') charts.barras('cv-canal', canalData.map(c => c.label), canalData.map(c => c.valor), (i) => drillCanal(canalData[i]), true);
-  if (catView === 'pizza') charts.pizza('cv-cat', catData.map(c => c.label), catData.map(c => c.valor), (i) => drillCat(catData[i]));
-  else if (catView === 'barras') charts.barras('cv-cat', catData.map(c => c.label), catData.map(c => c.valor), (i) => drillCat(catData[i]), true);
+  if (canalView === 'pizza') charts.pizza('cv-canal', canalData.map(c => c.label), canalData.map(c => c.valor), (i) => drillCanal(canalData[i]), chartLabelOn('cv-canal'));
+  else if (canalView === 'barras') charts.barras('cv-canal', canalData.map(c => c.label), canalData.map(c => c.valor), (i) => drillCanal(canalData[i]), true, chartLabelOn('cv-canal'));
+  if (catView === 'pizza') charts.pizza('cv-cat', catData.map(c => c.label), catData.map(c => c.valor), (i) => drillCat(catData[i]), chartLabelOn('cv-cat'));
+  else if (catView === 'barras') charts.barras('cv-cat', catData.map(c => c.label), catData.map(c => c.valor), (i) => drillCat(catData[i]), true, chartLabelOn('cv-cat'));
 
   wire(container);
   wireExport(container, 'Dashboard');

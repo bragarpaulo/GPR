@@ -102,6 +102,12 @@ function renderView() {
   lastRoute = route;
 }
 
+// Olhinho 👁 dos gráficos: mostra/oculta rótulos de valor (barras) ou % (pizza). Vale em qualquer view.
+document.addEventListener('click', (e) => {
+  const eye = e.target.closest('[data-eye]');
+  if (eye) { e.preventDefault(); store.toggleChartLabel(eye.dataset.eye); }
+});
+
 if (!location.hash) location.hash = '#inicio';
 buildNav();
 renderView();

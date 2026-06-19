@@ -60,6 +60,27 @@ const barValueLabels = {
   },
 };
 
+// Plugin: % dentro de cada fatia da pizza (fatias pequenas só no hover).
+const pieLabels = {
+  id: 'pieLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    const meta = chart.getDatasetMeta(0); const data = chart.data.datasets[0].data;
+    const total = data.reduce((a, b) => a + (Number(b) || 0), 0);
+    if (!total) return;
+    meta.data.forEach((arc, i) => {
+      const frac = (Number(data[i]) || 0) / total;
+      if (frac < 0.05) return;
+      const ang = (arc.startAngle + arc.endAngle) / 2, r = (arc.innerRadius + arc.outerRadius) / 2;
+      ctx.save();
+      ctx.font = '700 11px Inter, system-ui, sans-serif'; ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(Math.round(frac * 100) + '%', arc.x + Math.cos(ang) * r, arc.y + Math.sin(ang) * r);
+      ctx.restore();
+    });
+  },
+};
+
 function make(id, config, onClick) {
   if (typeof Chart === 'undefined') return false;
   const el = document.getElementById(id);
@@ -90,44 +111,51 @@ const gridOpts = (brlAxis = 'y') => {
   };
 };
 
-export function receitaDespesa(id, labels, receita, despesa, lucro, onClick) {
+export function receitaDespesa(id, labels, receita, despesa, lucro, onClick, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [
       { label: 'Receita', data: receita, backgroundColor: '#16A34A', borderRadius: 4 },
       { label: 'Despesa', data: despesa, backgroundColor: '#EF4444', borderRadius: 4 },
       { label: 'Lucro', data: lucro, type: 'line', borderColor: '#1D4ED8', backgroundColor: '#1D4ED8', tension: .3, fill: false, pointRadius: 2 },
-    ] }, options: gridOpts('y'), plugins: [barValueLabels],
+    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
   }, onClick);
 }
-export function recebPag(id, labels, receb, pag, geracao, onClick) {
+export function recebPag(id, labels, receb, pag, geracao, onClick, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [
       { label: 'Recebimentos', data: receb, backgroundColor: '#16A34A', borderRadius: 4 },
       { label: 'Pagamentos', data: pag, backgroundColor: '#EF4444', borderRadius: 4 },
       { label: 'Geração de Caixa', data: geracao, type: 'line', borderColor: '#1D4ED8', backgroundColor: '#1D4ED8', tension: .3, fill: false, pointRadius: 2 },
-    ] }, options: gridOpts('y'), plugins: [barValueLabels],
+    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
   }, onClick);
 }
 
 // Pizza (doughnut) genérica.
-export function pizza(id, labels, valores, onClick) {
+export function pizza(id, labels, valores, onClick, mostrar = true) {
   return make(id, {
     type: 'doughnut',
     data: { labels, datasets: [{ data: valores, backgroundColor: labels.map((_, i) => PALETA[i % PALETA.length]), borderWidth: 1, borderColor: '#fff' }] },
-    options: { responsive: true, maintainAspectRatio: false, cutout: '58%', plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${BRLfull(ctx.parsed)}` } } } },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '58%',
+      plugins: {
+        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 10 } } },
+        tooltip: { callbacks: { label: (ctx) => { const t = ctx.dataset.data.reduce((a, b) => a + (Number(b) || 0), 0); const p = t ? ctx.parsed / t * 100 : 0; return `${ctx.label}: ${BRLfull(ctx.parsed)} (${p.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%)`; } } },
+      },
+    },
+    plugins: mostrar ? [pieLabels] : [],
   }, onClick);
 }
 
 // Meta × Realizado (2 séries de barras).
-export function metaRealChart(id, labels, meta, real) {
+export function metaRealChart(id, labels, meta, real, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [
       { label: 'Meta', data: meta, backgroundColor: '#94A3B8', borderRadius: 4 },
       { label: 'Realizado', data: real, backgroundColor: '#1D4ED8', borderRadius: 4 },
-    ] }, options: gridOpts('y'), plugins: [barValueLabels],
+    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
   });
 }
 
@@ -141,7 +169,7 @@ export function linhaProjecao(id, labels, valores) {
 }
 
 // Barras genéricas (horizontal = indexAxis y). Eixo de valor sempre em R$.
-export function barras(id, labels, valores, onClick, horizontal = false) {
+export function barras(id, labels, valores, onClick, horizontal = false, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [{ data: valores, backgroundColor: labels.map((_, i) => PALETA[i % PALETA.length]), borderRadius: 4 }] },
@@ -150,6 +178,6 @@ export function barras(id, labels, valores, onClick, horizontal = false) {
       layout: { padding: { top: horizontal ? 4 : 22, right: horizontal ? 70 : 8 } },
       plugins: { legend: { display: false }, tooltip: tooltipBRL },
     },
-    plugins: [barValueLabels],
+    plugins: mostrar ? [barValueLabels] : [],
   }, onClick);
 }

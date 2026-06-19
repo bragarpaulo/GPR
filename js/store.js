@@ -23,6 +23,7 @@ function defaultUI(ano) {
     dashCatSort: 'desc', dashCanalSort: 'desc',
     vendasSort: { campo: '', dir: 'asc' },
     despesasSort: { campo: '', dir: 'asc' },
+    chartHide: {},                    // { [idDoGrafico]: true } => rótulos/% ocultos
   };
 }
 
@@ -270,6 +271,9 @@ export function setEmpresaCampo(campo, valor) { update(s => { s.empresa[campo] =
 export function setOrcamento(ano, catId, mesIdx, valor) { update(s => { if (!s.orcamento[ano]) s.orcamento[ano] = {}; if (!Array.isArray(s.orcamento[ano][catId])) s.orcamento[ano][catId] = Array(12).fill(0); s.orcamento[ano][catId][mesIdx] = valor; }); }
 export function setPeriodoMeses(arr) { update(s => { s.ui.periodoMeses = Array.from(arr).map(Number); }); }
 export function setUiCampo(campo, valor) { update(s => { s.ui[campo] = valor; }); }
+// Mostrar/ocultar rótulos de valor (barras) ou % (pizza) por gráfico (id do canvas).
+export function chartLabelOn(id) { return !(getState().ui.chartHide || {})[id]; }
+export function toggleChartLabel(id) { update(s => { const h = { ...(s.ui.chartHide || {}) }; if (h[id]) delete h[id]; else h[id] = true; s.ui.chartHide = h; }); }
 function toggleSort(cur, campo) { return (cur && cur.campo === campo) ? { campo, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { campo, dir: 'asc' }; }
 export function setVendasSort(campo) { update(s => { s.ui.vendasSort = toggleSort(s.ui.vendasSort, campo); }); }
 export function setDespesasSort(campo) { update(s => { s.ui.despesasSort = toggleSort(s.ui.despesasSort, campo); }); }
