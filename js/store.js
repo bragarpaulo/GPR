@@ -148,6 +148,8 @@ export function update(mutator, { silent = false } = {}) { mutator(active()); sa
 
 // ---- Nuvem ---------------------------------------------------------------
 let _cloudTimer = null, _lastLocalSave = 0;
+// Empurra para a nuvem IMEDIATAMENTE (usado em reset/limpar, p/ não voltar do remoto no reload).
+function flushCloud() { if (!cloudEnabled()) return; clearTimeout(_cloudTimer); _lastLocalSave = Date.now(); try { cloudSave(root); } catch (e) {} }
 function scheduleCloud() {
   if (!cloudEnabled()) return;
   clearTimeout(_cloudTimer);
@@ -191,13 +193,13 @@ export function removerEmpresa(id) {
   save(); emit();
 }
 // Restaurar demo: descarta TUDO e recria a única "Empresa Demonstrativa", no período vigente.
-export function resetDemo() { root = demoRoot(); aplicarVigente(active()); save(); emit(); }
+export function resetDemo() { root = demoRoot(); aplicarVigente(active()); save(); flushCloud(); emit(); }
 // Limpar tudo: apaga TODAS as empresas e dados, deixando uma única empresa em branco.
 export function clearAll() {
   const c = emptyCompany(anoCorrente(), 'Minha Empresa');
   root = { companies: [c], activeId: c.id };
   aplicarVigente(active());
-  save(); emit();
+  save(); flushCloud(); emit();
 }
 
 // ---- Anos (multi-ano) ----------------------------------------------------

@@ -10,6 +10,7 @@ const COL_EMPRESA = ['Nome da empresa', 'CNPJ', 'Data de início (dd/mm/aaaa)'];
 const COL_CONTAS = ['Conta (banco/caixa)', 'Tipo', 'Saldo inicial', 'Data-base (dd/mm/aaaa)'];
 const COL_CANAIS = ['Canal', 'Ano', ...MES_COL];
 const COL_CATEG = ['Categoria', 'Grupo (DRE)'];
+const COL_ORC = ['Categoria', 'Ano', ...MES_COL];
 const COL_VENDAS = ['Data da Venda', 'Nº do Pedido', 'Canal', 'Categoria de Receita', 'Produto/Pedido', 'Cliente', 'Parcela', 'Valor', 'Data de Vencimento', 'Data de Recebimento', 'Conta', 'Observações'];
 const COL_DESP = ['Data de Vencimento', 'Mês Competência', 'Descrição', 'Categoria', 'Valor', 'Recebedor/Fornecedor', 'Conta', 'Forma de Pagamento', 'Pago em', 'Observações'];
 
@@ -50,7 +51,7 @@ export function baixarModelo() {
     ['Como preencher:'],
     ['• Datas no formato dd/mm/aaaa (ex.: 15/01/2026).'],
     ['• Não renomeie as abas nem as colunas (cabeçalhos).'],
-    ['• Apague as linhas de exemplo marcadas como "exemplo (apague)".'],
+    ['• As linhas de exemplo JÁ SÃO IMPORTADAS — edite-as ou substitua pelos seus dados (e apague as que não usar).'],
     ['• Clientes, Produtos/Pedidos e Recebedores são cadastrados automaticamente a partir dos lançamentos.'],
     ['• Canais, Contas e Categorias citados nos lançamentos que não estiverem nas abas de cadastro também são criados.'],
     [''],
@@ -59,6 +60,7 @@ export function baixarModelo() {
     ['• Contas — bancos/caixa com saldo inicial e data-base (ancoram o Fluxo de Caixa).'],
     ['• Canais e Metas — fontes de receita e a meta de cada mês (por ano).'],
     ['• Categorias de Despesa — categoria + grupo do DRE (opcional).'],
+    ['• Orçamento de Despesas — quanto você planeja gastar por categoria em cada mês (por ano).'],
     ['• Vendas — um lançamento de receita por linha.'],
     ['• Despesas — um lançamento de despesa por linha.'],
     [''],
@@ -82,15 +84,22 @@ export function baixarModelo() {
     ['Aluguel', 'operacionais'],
     ['Salários', 'operacionais'],
     ['Impostos sobre vendas', 'deducoes'],
-    ['exemplo (apague)', 'operacionais'],
   ]);
 
+  add('Orçamento de Despesas', [COL_ORC,
+    ['Aluguel', 2026, 800, 800, 800, 800, 800, 800, 800, 800, 800, 800, 800, 800],
+    ['Salários', 2026, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000],
+  ]);
+
+  // Linhas de exemplo (já importáveis) — edite/substitua pelos seus dados.
   add('Vendas', [COL_VENDAS,
-    ['15/01/2026', '1001', 'Loja Física', 'Receita Bruta (Faturamento)', 'Produto A', 'Cliente X', '', 1500, '15/01/2026', '15/01/2026', 'Nubank PJ', 'exemplo (apague)'],
+    ['15/01/2026', '1001', 'Loja Física', 'Receita Bruta (Faturamento)', 'Produto A', 'Cliente X', '', 1500, '15/01/2026', '15/01/2026', 'Nubank PJ', ''],
+    ['20/01/2026', '1002', 'Online', 'Receita Bruta (Faturamento)', 'Produto B', 'Cliente Y', '', 900, '20/02/2026', '', 'Nubank PJ', 'a receber'],
   ]);
 
   add('Despesas', [COL_DESP,
-    ['10/01/2026', 'jan/2026', 'Aluguel', 'Aluguel', 800, 'Imobiliária Y', 'Nubank PJ', 'PIX', '10/01/2026', 'exemplo (apague)'],
+    ['10/01/2026', 'jan/2026', 'Aluguel da loja', 'Aluguel', 800, 'Imobiliária Y', 'Nubank PJ', 'PIX', '10/01/2026', ''],
+    ['05/01/2026', 'jan/2026', 'Folha de pagamento', 'Salários', 5000, 'Equipe', 'Nubank PJ', 'PIX', '05/01/2026', ''],
   ]);
 
   const maxL = Math.max(GRUPOS.length, FORMAS_PAGAMENTO.length, DEFAULT_RECEITA_CATEGORIES.length);
@@ -118,8 +127,9 @@ export function importarArquivo(file, cb) {
     const rowsCon = rowsDe(wb, /conta/);
     const rowsCan = rowsDe(wb, /cana/);
     const rowsCat = rowsDe(wb, /categoria/);
+    const rowsOrc = rowsDe(wb, /or[çc]amento/);
     const rowsV = rowsDe(wb, /venda/);
-    const rowsD = rowsDe(wb, /despesa/, /categoria/);   // não confundir com "Categorias de Despesa"
+    const rowsD = rowsDe(wb, /despesa/, /categoria|or[çc]amento/);   // não confundir com "Categorias de Despesa" / "Orçamento de Despesas"
 
     // Nome da empresa + ano primário (menor ano das datas dos lançamentos).
     const emp = rowsEmp[0] || {};
@@ -183,6 +193,19 @@ export function importarArquivo(file, cb) {
       const ensureProd = (n) => { n = String(n || '').trim(); if (n && !s.produtos.find(p => norm(p.nome) === norm(n))) s.produtos.push({ id: uid('prod'), nome: n }); return n; };
       const ano = (iso) => { if (iso) resumo.anos.add(Number(iso.slice(0, 4))); };
 
+      // Orçamento de despesas (planejado por categoria × mês, por ano)
+      for (const r of rowsOrc) {
+        const km = keymapDe(r);
+        const catNome = String(vAl(r, km, 'Categoria') || '').trim(); if (!catNome) continue;
+        const arr = MES_COL.map(m => num(vAl(r, km, m)));
+        if (!arr.some(v => v)) continue;
+        const catId = matchCat(catNome);
+        const anoO = Number(String(vAl(r, km, 'Ano') || '').trim()) || primaryAno;
+        if (!s.orcamento[anoO]) s.orcamento[anoO] = {};
+        s.orcamento[anoO][catId] = arr;
+        resumo.anos.add(anoO);
+      }
+
       // Vendas
       for (const r of rowsV) {
         const km = keymapDe(r);
@@ -192,7 +215,6 @@ export function importarArquivo(file, cb) {
         const val = num(vAl(r, km, 'Valor'));
         const obs = String(vAl(r, km, 'Observações') || '');
         if (!dv && !venc && !val) continue;
-        if (norm(obs) === norm('exemplo (apague)')) continue;
         s.vendas.push({ id: uid('v'), dataVenda: dv, pedido: String(vAl(r, km, 'Nº do Pedido', 'Nº Pedido', 'Nº do pedido') || ''), canalId: findCanal(vAl(r, km, 'Canal', 'Canal de Venda')), categoriaReceitaId: matchReceita(vAl(r, km, 'Categoria de Receita', 'Categoria')), produto: ensureProd(vAl(r, km, 'Produto/Pedido')), cliente: ensureCli(vAl(r, km, 'Cliente')), parcela: String(vAl(r, km, 'Parcela') || ''), valor: val, dataVencimento: venc || dv, dataRecebimento: rec, contaId: findConta(vAl(r, km, 'Conta', 'Conta Corrente')), obs });
         resumo.vendas++; ano(dv); ano(venc); ano(rec);
       }
@@ -206,7 +228,6 @@ export function importarArquivo(file, cb) {
         let comp = String(vAl(r, km, 'Mês Competência') || '').trim();
         const cd = parseData(comp); if (cd) comp = `${MESES[Number(cd.slice(5, 7)) - 1]}/${cd.slice(0, 4)}`;
         if (!venc && !val) continue;
-        if (norm(obs) === norm('exemplo (apague)')) continue;
         s.despesas.push({ id: uid('d'), dataVencimento: venc, mesCompetencia: comp, descricao: String(vAl(r, km, 'Descrição') || ''), categoriaId: matchCat(vAl(r, km, 'Categoria')), valor: val, fornecedor: ensureForn(vAl(r, km, 'Recebedor/Fornecedor', 'Fornecedor', 'Recebedor')), contaId: findConta(vAl(r, km, 'Conta', 'Conta Corrente')), formaPagamento: matchForma(vAl(r, km, 'Forma de Pagamento')), dataPagamentoReal: pago, obs });
         resumo.despesas++; ano(venc); ano(pago);
       }
