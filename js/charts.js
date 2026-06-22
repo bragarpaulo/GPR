@@ -242,6 +242,22 @@ export function lucroChart(id, labels, lucro, onClick, mostrar = true) {
 }
 
 // Sparkline (mini-linha em card) — sem eixos, sem legenda, sem grid. Compacto.
+// Mini-gráfico com 2+ linhas sobrepostas (ex.: Saldo + Geração no hero). series = [{label,data,cor}].
+// Tooltip mode 'index' → ao passar o mouse, mostra todas as séries do mês.
+export function sparklineMulti(id, labels, series) {
+  return make(id, {
+    type: 'line',
+    data: { labels, datasets: series.map(s => ({ label: s.label, data: s.data, borderColor: s.cor, backgroundColor: 'transparent', fill: false, tension: .3, pointRadius: 0, pointHoverRadius: 4, pointBackgroundColor: s.cor, pointBorderColor: s.cor, borderWidth: 2.5 })) },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (ctx) => `${ctx.dataset.label}: ${BRLfull(ctx.parsed.y)}` } } },
+      scales: { x: { display: false }, y: { display: false } },
+      elements: { line: { borderJoinStyle: 'round' } },
+    },
+  });
+}
+
 export function sparkline(id, valores, cor = '#1D4ED8', labels = null) {
   return make(id, {
     type: 'line',

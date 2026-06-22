@@ -93,12 +93,12 @@ export function render(container) {
       </div>
       <div class="fluxo-hero-sparks">
         <div class="fluxo-hero-spark">
-          <div class="fluxo-hero-spark-label">📈 Saldo ao longo do ano</div>
-          <div class="fluxo-hero-spark-wrap"><canvas id="ch-sp-saldo"></canvas></div>
-        </div>
-        <div class="fluxo-hero-spark">
-          <div class="fluxo-hero-spark-label">💵 Geração de caixa</div>
-          <div class="fluxo-hero-spark-wrap"><canvas id="ch-sp-ger"></canvas></div>
+          <div class="fluxo-hero-spark-label">📈 Saldo e geração de caixa ao longo do ano</div>
+          <div class="spark-legend">
+            <span class="sl-item"><i style="background:#fff"></i>Saldo</span>
+            <span class="sl-item"><i style="background:#6EE7B7"></i>Geração</span>
+          </div>
+          <div class="fluxo-hero-spark-wrap fluxo-hero-spark-wrap-tall"><canvas id="ch-sp-duo"></canvas></div>
         </div>
       </div>
     </div>
@@ -151,8 +151,10 @@ export function render(container) {
   charts.linhaProjecao('ch-proj', proj.labels, proj.saldo);
   // Mês a mês até o mês atual (no ano vigente); anos passados/futuros mostram o ano todo.
   const ateSpark = (anoAtivo(s) === new Date().getFullYear()) ? mesAtual + 1 : 12;
-  charts.sparkline('ch-sp-saldo', f.saldoConta.slice(0, ateSpark), '#ffffff', MESES.slice(0, ateSpark));   // hero tem gradiente → branco contrasta
-  charts.sparkline('ch-sp-ger', f.resultado.slice(0, ateSpark), '#ffffff', MESES.slice(0, ateSpark));
+  charts.sparklineMulti('ch-sp-duo', MESES.slice(0, ateSpark), [
+    { label: 'Saldo', data: f.saldoConta.slice(0, ateSpark), cor: '#ffffff' },
+    { label: 'Geração', data: f.resultado.slice(0, ateSpark), cor: '#6EE7B7' },
+  ]);
   montarChartsResumo(d);
   wire(container);
 }
