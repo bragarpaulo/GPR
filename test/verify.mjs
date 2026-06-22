@@ -3,7 +3,7 @@
 import { demoData } from '../js/seed.js';
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES } from '../js/config.js';
 import {
-  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno,
+  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave,
 } from '../js/calc.js';
 import { expandirRecorrencia } from '../js/recurrence.js';
 import { anosDisponiveis, noPeriodo, anosSelecionados } from '../js/util.js';
@@ -160,6 +160,14 @@ check('calcSeriesMultiAno: 1 ano → 1 série com 12 meses', ser.length === 1 &&
 check('calcSeriesMultiAno: receita do ano = entradas DRE', approx(sum(ser[0].receita), sum(dre.entradas)));
 const ser2 = calcSeriesMultiAno(s, [ano - 1, ano]);
 check('calcSeriesMultiAno: 2 anos → 2 séries (24 meses combinados)', ser2.length === 2 && ser2.flatMap(x => x.receita).length === 24);
+
+console.log('\n== FASE 11: VENDAS POR PRODUTO / CLIENTE ==');
+const porProd = calcVendasPorChave(s, 'produto');
+const porCli = calcVendasPorChave(s, 'cliente');
+check('calcVendasPorChave produto: soma = entradas DRE (ano)', approx(sum(porProd.map(x => x.valor)), sum(dre.entradas)), `(${brl(sum(porProd.map(x => x.valor)))})`);
+check('calcVendasPorChave: produto e cliente somam o mesmo total', approx(sum(porProd.map(x => x.valor)), sum(porCli.map(x => x.valor))));
+check('calcVendasPorChave: ordenado desc por valor', porProd.every((x, i) => i === 0 || porProd[i - 1].valor >= x.valor));
+check('calcVendasPorChave: pct soma ~1', porProd.length === 0 || approx(sum(porProd.map(x => x.pct)), 1, 0.01));
 
 console.log(`\n== RESULTADO: ${pass} passou, ${fail} falhou ==`);
 process.exit(fail ? 1 : 0);

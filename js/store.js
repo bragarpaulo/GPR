@@ -23,6 +23,7 @@ function defaultUI(ano) {
     dashCatView: 'pizza',             // Despesas por categoria: pizza|barras|tabela
     dashCanalView: 'barras',          // Faturamento por canal: pizza|barras|tabela
     dashCatSort: 'desc', dashCanalSort: 'desc',
+    mxrProdView: 'pizza', mxrCliView: 'pizza',   // Meta×Real: vendas por produto/cliente: pizza|barras|tabela
     vendasSort: { campo: '', dir: 'asc' },
     despesasSort: { campo: '', dir: 'asc' },
     chartHide: {},                    // { [idDoGrafico]: true } => rótulos/% ocultos
@@ -65,6 +66,7 @@ function migrarCompany(c) {
   if (!c.plataformas) c.plataformas = { disponiveis: [], aReceber: [] };
   if (!Array.isArray(c.fornecedores)) c.fornecedores = [];
   if (!Array.isArray(c.clientes)) c.clientes = [];
+  if (!Array.isArray(c.produtos)) c.produtos = [];
 
   // vendas: garantir contaId (banco de recebimento)
   c.vendas.forEach(v => { if (v.contaId === undefined) v.contaId = ''; });
@@ -98,7 +100,7 @@ function emptyCompany(ano = anoCorrente(), nome = '') {
     empresa: { nome, cnpj: '', anos: [ano], dataInicio: '' },
     contas: [], canais: [], categorias: freshCategorias(), receitaCategorias: freshReceitaCats(),
     vendas: [], despesas: [], orcamento: {}, plataformas: { disponiveis: [], aReceber: [] },
-    fornecedores: [], clientes: [],
+    fornecedores: [], clientes: [], produtos: [],
     ui: defaultUI(ano),
   });
 }
@@ -250,7 +252,7 @@ function moveById(arr, fromId, toId) {
 // ---- CRUD: Vendas --------------------------------------------------------
 export function novaVenda(base = {}) {
   const s = active();
-  return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
+  return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', parcela: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
 }
 export function addVenda(base, opts) { let nova; update(s => { nova = novaVenda(base); s.vendas.push(nova); }, opts); return nova; }
 export function addVendasLote(lista) { update(s => { for (const v of lista) s.vendas.push(novaVenda(v)); }); }
@@ -356,6 +358,17 @@ export function reordenarClientes(fromId, toId) { update(s => moveById(s.cliente
 export function ensureCliente(nome) {
   const n = String(nome || '').trim(); if (!n) return;
   update(s => { if (!s.clientes.some(c => normNome(c.nome) === normNome(n))) s.clientes.push({ id: uid('cli'), nome: n }); }, { silent: true });
+}
+
+// ---- CRUD: Produtos / Pedidos (vendas) — espelho de Clientes -------------
+export function addProduto() { update(s => s.produtos.push({ id: uid('prod'), nome: 'Novo produto' })); }
+export function renomearProduto(id, nome) { update(s => { const p = s.produtos.find(x => x.id === id); if (p) p.nome = nome; }); }
+export function removerProduto(id) { update(s => { s.produtos = s.produtos.filter(p => p.id !== id); }); }
+export function removerProdutos(ids) { const set = new Set(ids); update(s => { s.produtos = s.produtos.filter(p => !set.has(p.id)); }); }
+export function reordenarProdutos(fromId, toId) { update(s => moveById(s.produtos, fromId, toId)); }
+export function ensureProduto(nome) {
+  const n = String(nome || '').trim(); if (!n) return;
+  update(s => { if (!s.produtos.some(p => normNome(p.nome) === normNome(n))) s.produtos.push({ id: uid('prod'), nome: n }); }, { silent: true });
 }
 
 // ---- CRUD: Categorias ----------------------------------------------------

@@ -36,6 +36,28 @@ export function despesaDerivada(d) {
 export function vendasDerivadas(s) { return s.vendas.map(vendaDerivada); }
 export function despesasDerivadas(s) { return s.despesas.map(despesaDerivada); }
 
+// Vendas agrupadas por uma chave ('produto' | 'cliente'), respeitando o filtro de período (ano+meses).
+// Retorna [{ id, label, nome, valor, pct }] ordenado desc. Itens vazios viram "(sem <chave>)".
+export function calcVendasPorChave(s, chave) {
+  const ano = anoAtivo(s);
+  const todos = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+  const meses = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? s.ui.periodoMeses : todos;
+  const keysSel = meses.map(i => chaveMes(i, ano));
+  const inSel = (k) => keysSel.includes(k);
+  const semLabel = chave === 'cliente' ? '(sem cliente)' : '(sem produto)';
+  const map = new Map();
+  for (const v of vendasDerivadas(s)) {
+    if (!inSel(v.mesVenda)) continue;
+    const nome = String(v[chave] || '').trim() || semLabel;
+    map.set(nome, (map.get(nome) || 0) + num(v.valor));
+  }
+  const arr = [...map].map(([nome, valor]) => ({ id: nome, label: nome, nome, valor }));
+  const tot = arr.reduce((a, x) => a + x.valor, 0) || 1;
+  arr.forEach(x => { x.pct = x.valor / tot; });
+  arr.sort((a, b) => b.valor - a.valor);
+  return arr;
+}
+
 // ===== DRE (competência) ==================================================
 export function calcDRE(s) {
   const ano = anoAtivo(s);

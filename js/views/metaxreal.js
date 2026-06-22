@@ -1,8 +1,8 @@
 // views/metaxreal.js — Meta x Realizado da receita por canal (YTD + totais + gráfico).
-import { getState, chartLabelOn } from '../store.js';
-import { calcMetaxReal } from '../calc.js';
+import { getState, chartLabelOn, setUiCampo } from '../store.js';
+import { calcMetaxReal, calcVendasPorChave } from '../calc.js';
 import { MESES } from '../config.js';
-import { pageHead, thMeses, exportToolbar, wireExport, eyeToggle } from '../ui.js';
+import { pageHead, thMeses, exportToolbar, wireExport, eyeToggle, chartWidget } from '../ui.js';
 import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
 
@@ -10,6 +10,10 @@ export function render(container) {
   const s = getState();
   const ano = anoAtivo(s);
   const d = calcMetaxReal(s);
+  // Vendas por Produto/Pedido e por Cliente (seguem o filtro de meses do cabeçalho).
+  const prodData = calcVendasPorChave(s, 'produto');
+  const cliData = calcVendasPorChave(s, 'cliente');
+  const prodView = s.ui.mxrProdView || 'pizza', cliView = s.ui.mxrCliView || 'pizza';
 
   // Totais mês a mês (somando canais)
   const metaMes = Array.from({ length: 12 }, (_, i) => d.canais.reduce((a, c) => a + (c.meta[i] || 0), 0));
@@ -62,8 +66,31 @@ export function render(container) {
         <thead><tr><th style="min-width:180px">Canal</th>${thMeses(ano)}</tr></thead>
         <tbody>${detalhe || `<tr><td colspan="14" class="empty">Sem dados.</td></tr>`}</tbody>
       </table>
+    </div>
+
+    <div class="section-title">Vendas por Produto/Pedido e por Cliente</div>
+    <div class="grid charts-grid charts-grid-1">
+      ${chartWidget({ titulo: '🛒 Vendas por Produto/Pedido', segName: 'mxrProd', view: prodView, data: prodData, canvasId: 'ch-mxr-prod', dlName: 'Vendas-por-produto', labelOn: chartLabelOn('ch-mxr-prod') })}
+      ${chartWidget({ titulo: '👥 Vendas por Cliente', segName: 'mxrCli', view: cliView, data: cliData, canvasId: 'ch-mxr-cli', dlName: 'Vendas-por-cliente', labelOn: chartLabelOn('ch-mxr-cli') })}
     </div>`;
 
   charts.metaRealChart('ch-mxr', MESES, metaMes, realMes, chartLabelOn('ch-mxr'));
+  const montarBreak = (view, canvasId, data) => {
+    if (view === 'tabela') return;
+    const labels = data.map(x => x.label), vals = data.map(x => x.valor);
+    if (view === 'pizza') charts.pizza(canvasId, labels, vals, null, chartLabelOn(canvasId));
+    else charts.barras(canvasId, labels, vals, null, true, chartLabelOn(canvasId));
+  };
+  montarBreak(prodView, 'ch-mxr-prod', prodData);
+  montarBreak(cliView, 'ch-mxr-cli', cliData);
+
+  // Alternar Pizza/Barras/Tabela dos blocos de produto/cliente.
+  container.addEventListener('click', (ev) => {
+    const segBtn = ev.target.closest('.seg button'); if (!segBtn) return;
+    const name = segBtn.closest('.seg').dataset.seg;
+    if (name === 'mxrProd') setUiCampo('mxrProdView', segBtn.dataset.segVal);
+    else if (name === 'mxrCli') setUiCampo('mxrCliView', segBtn.dataset.segVal);
+  });
+
   wireExport(container, 'Meta-x-Real', { modo: 'tabela' });
 }

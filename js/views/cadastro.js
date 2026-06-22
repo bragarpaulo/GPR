@@ -7,6 +7,7 @@ import {
   renomearCategoria, addCategoria, removerCategoria, removerCategorias, reordenarCategorias,
   addFornecedor, renomearFornecedor, removerFornecedor, removerFornecedores,
   addCliente, renomearCliente, removerCliente, removerClientes,
+  addProduto, renomearProduto, removerProduto, removerProdutos,
   addAno, removerAno, setAnoAtivo, GRUPOS,
 } from '../store.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
@@ -84,6 +85,14 @@ export function render(container) {
       <td class="nowrap col-icon"><button class="btn btn-sm btn-icon" data-action="rm-cli" data-id="${c.id}">🗑</button></td>
     </tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum cliente. Eles também surgem ao lançar uma venda.</td></tr>`;
 
+  // ---- Produtos / Pedidos (só sugestão de autocomplete — sem reordenar) ----
+  const produtosRows = s.produtos.map(p => `
+    <tr data-row="${p.id}" data-tbl="produtos">
+      ${chk(p.id, 'produtos')}
+      <td><input class="inp-flush" data-prod-id="${p.id}" value="${esc(p.nome)}"></td>
+      <td class="nowrap col-icon"><button class="btn btn-sm btn-icon" data-action="rm-prod" data-id="${p.id}">🗑</button></td>
+    </tr>`).join('') || `<tr><td colspan="3" class="empty">Nenhum produto/pedido. Eles também surgem ao lançar uma venda.</td></tr>`;
+
   // ---- Recebedores / Fornecedores (só sugestão de autocomplete — sem reordenar) ----
   const fornecedoresRows = s.fornecedores.map(f => `
     <tr data-row="${f.id}" data-tbl="fornecedores">
@@ -135,6 +144,11 @@ export function render(container) {
     </div>
 
     <div class="card card-pad cad-section">
+      ${sectionHead('📦 Produtos / Pedidos (Vendas)', { sub: 'Sugeridos no campo Produto/Pedido das Vendas. Itens novos digitados lá são cadastrados sozinhos.', actions: '<button class="btn btn-sm" data-action="del-sel" data-sel="produtos">Excluir selecionados</button><button class="btn btn-sm btn-primary" data-action="add-prod">+ Adicionar produto/pedido</button>' })}
+      <div class="table-wrap table-flat"><table><tbody>${produtosRows}</tbody></table></div>
+    </div>
+
+    <div class="card card-pad cad-section">
       ${sectionHead('🧾 Recebedores / Fornecedores', { sub: 'Sugeridos no campo Recebedor das Despesas.', actions: '<button class="btn btn-sm" data-action="del-sel" data-sel="fornecedores">Excluir selecionados</button><button class="btn btn-sm btn-primary" data-action="add-forn">+ Adicionar recebedor</button>' })}
       <div class="table-wrap table-flat"><table><tbody>${fornecedoresRows}</tbody></table></div>
     </div>
@@ -173,6 +187,7 @@ function wire(container, ano) {
     else if (t.dataset.catId) renomearCategoria(t.dataset.catId, t.value);
     else if (t.dataset.fornId) renomearFornecedor(t.dataset.fornId, t.value);
     else if (t.dataset.cliId) renomearCliente(t.dataset.cliId, t.value);
+    else if (t.dataset.prodId) renomearProduto(t.dataset.prodId, t.value);
   });
 
   container.addEventListener('click', (ev) => {
@@ -200,6 +215,8 @@ function wire(container, ano) {
     else if (action === 'rm-forn') removerFornecedor(id);
     else if (action === 'add-cli') addCliente();
     else if (action === 'rm-cli') removerCliente(id);
+    else if (action === 'add-prod') addProduto();
+    else if (action === 'rm-prod') removerProduto(id);
     else if (action === 'baixar-modelo') baixarModelo(b.dataset.tipo || 'simples');
     else if (action === 'importar') container.querySelector('#import-file').click();
     else if (action === 'add-ano') {
@@ -212,6 +229,7 @@ function wire(container, ano) {
       if (!ids.length) { alert('Marque ao menos uma linha.'); return; }
       if (!confirm(`Excluir ${ids.length} item(ns) selecionado(s)?`)) return;
       if (sel === 'clientes') removerClientes(ids);
+      else if (sel === 'produtos') removerProdutos(ids);
       else if (sel === 'fornecedores') removerFornecedores(ids);
       else if (sel.startsWith('cat')) removerCategorias(ids);
     }

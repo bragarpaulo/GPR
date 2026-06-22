@@ -1,6 +1,6 @@
 // views/vendas.js — Lançamento de Vendas. Edição NÃO reordena/re-renderiza (linha fica fixa);
 // status/derivados atualizam só na própria linha; adicionar anexa no fim; recorrência inline.
-import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta } from '../store.js';
+import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, ensureProduto, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta } from '../store.js';
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
 import { pageHead, options, badgeVenda, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
@@ -30,11 +30,11 @@ function rowHtml(v, s) {
       <td><input class="inp-flush" style="width:80px" data-id="${v.id}" data-campo="pedido" value="${esc(v.pedido)}"></td>
       <td><select data-id="${v.id}" data-campo="canalId">${options(s.canais, v.canalId, { placeholder: '—' })}</select></td>
       <td class="cat-cell"><select data-id="${v.id}" data-campo="categoriaReceitaId">${options(s.receitaCategorias, v.categoriaReceitaId)}</select>${recBtn}</td>
-      <td><input class="inp-flush" style="min-width:120px" data-id="${v.id}" data-campo="produto" value="${esc(v.produto)}"></td>
+      <td><input class="inp-flush" style="min-width:120px" data-ac="produto" data-id="${v.id}" data-campo="produto" value="${esc(v.produto)}" autocomplete="off"></td>
       <td><input class="inp-flush" style="min-width:120px" data-ac="cliente" data-id="${v.id}" data-campo="cliente" value="${esc(v.cliente)}" autocomplete="off"></td>
       <td><select data-id="${v.id}" data-campo="contaId">${options(s.contas, v.contaId, { placeholder: '—' })}</select></td>
       <td class="num">${moneyInput(v.valor, `data-id="${v.id}" data-campo="valor"`, 120)}</td>
-      <td class="num derived" data-cell="valorAVista">${fmtBRL0(v.valorAVista)}</td>
+      <td><input class="inp-flush" style="width:64px" data-id="${v.id}" data-campo="parcela" value="${esc(v.parcela || '')}" placeholder="—"></td>
       <td><input type="date" data-id="${v.id}" data-campo="dataVencimento" value="${esc(v.dataVencimento)}"></td>
       <td class="derived" data-cell="mesReceb">${esc(v.mesAnoRecebimento)}</td>
       <td><input type="date" data-id="${v.id}" data-campo="dataRecebimento" value="${esc(v.dataRecebimento)}"></td>
@@ -52,7 +52,6 @@ function atualizarDerivada(container, id) {
   const put = (cell, html) => { const el = tr.querySelector(`[data-cell="${cell}"]`); if (el) el.innerHTML = html; };
   put('mesVenda', esc(v.mesVenda));
   put('mesReceb', esc(v.mesAnoRecebimento));
-  put('valorAVista', fmtBRL0(v.valorAVista));
   put('status', badgeVenda(v.status));
 }
 
@@ -96,7 +95,7 @@ export function render(container) {
           <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
           <th class="col-acoes">Ações</th>
           <th class="sortable" data-sortcol="dataVenda">Data da Venda${arrow('dataVenda')}</th><th>Mês</th><th>Nº Pedido</th><th>Canal</th><th>Categoria</th>
-          <th>Produto/Pedido</th><th>Cliente</th><th>Conta</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th><th class="num">Valor à Vista</th>
+          <th>Produto/Pedido</th><th>Cliente</th><th>Conta</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th><th>Parcela</th>
           <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th><th>Mês/Ano Receb.</th>
           <th class="sortable" data-sortcol="dataRecebimento">Data Recebimento${arrow('dataRecebimento')}</th>
           <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
@@ -108,6 +107,7 @@ export function render(container) {
 
   wire(container);
   attachAutocomplete(container, { selector: 'input[data-ac="cliente"]', getSource: () => getState().clientes, onPick: (inp, val) => { setVendaCampo(inp.dataset.id, 'cliente', val, { silent: true }); ensureCliente(val); } });
+  attachAutocomplete(container, { selector: 'input[data-ac="produto"]', getSource: () => getState().produtos, onPick: (inp, val) => { setVendaCampo(inp.dataset.id, 'produto', val, { silent: true }); ensureProduto(val); } });
 }
 
 function focarLinha(container, id) {
@@ -127,6 +127,7 @@ function wire(container) {
     if (t.tagName === 'INPUT' && t.classList.contains('inp-flush')) {
       setVendaCampo(id, campo, t.value, { silent: true });
       if (campo === 'cliente' && t.value) ensureCliente(t.value);
+      if (campo === 'produto' && t.value) ensureProduto(t.value);
       atualizarDerivada(container, id); return;
     }
     setVendaCampo(id, campo, t.value, { silent: true });   // selects também silenciosos → não reordena

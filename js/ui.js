@@ -215,16 +215,33 @@ export function seg(name, opts, active) {
   return `<div class="seg" data-seg="${name}">` + opts.map(o => `<button class="${o.val === active ? 'active' : ''}" data-seg-val="${o.val}">${esc(o.label)}</button>`).join('') + `</div>`;
 }
 
-// Barra de exportação (CSV + Imagem PNG + PDF + Imprimir). `left` = HTML opcional no canto esquerdo.
-export function exportToolbar(left = '') {
+// Barra de exportação. `left` = HTML opcional à esquerda; `only` = lista p/ limitar os botões (ex.: ['pdf']).
+export function exportToolbar(left = '', { only = null } = {}) {
+  const LABELS = { csv: '⬇ CSV', png: '🖼️ Imagem', pdf: '📄 PDF', print: '🖨 Imprimir' };
+  const tipos = only || ['csv', 'png', 'pdf', 'print'];
+  const btns = tipos.map(t => `<button class="btn btn-sm" data-export="${t}">${LABELS[t] || t}</button>`).join('');
   return `<div class="toolbar no-print" style="justify-content:space-between;gap:8px;flex-wrap:wrap">
     <div class="flex" style="gap:8px;flex-wrap:wrap">${left}</div>
-    <div class="flex" style="gap:8px;flex-wrap:wrap">
-      <button class="btn btn-sm" data-export="csv">⬇ CSV</button>
-      <button class="btn btn-sm" data-export="png">🖼️ Imagem</button>
-      <button class="btn btn-sm" data-export="pdf">📄 PDF</button>
-      <button class="btn btn-sm" data-export="print">🖨 Imprimir</button>
-    </div></div>`;
+    <div class="flex" style="gap:8px;flex-wrap:wrap">${btns}</div></div>`;
+}
+
+// Widget de gráfico alternável (Pizza/Barras/Tabela) reutilizável. `data` = [{id,label,valor,pct}].
+// `labelOn` = estado do olhinho 👁 (passado pela view, p/ não acoplar ao store aqui).
+export function chartWidget({ titulo, segName, view, data, canvasId, dlName = '', labelOn = true }) {
+  const seguidor = seg(segName, [{ val: 'pizza', label: 'Pizza' }, { val: 'barras', label: 'Barras' }, { val: 'tabela', label: 'Tabela' }], view);
+  let body;
+  if (view === 'tabela') {
+    const rows = data.map(d => `<tr>
+      <td>${esc(d.label)}</td><td class="num">${fmtBRL0(d.valor)}</td><td class="num">${fmtPct(d.pct)}</td>
+      <td style="width:110px"><div class="bar"><span style="width:${Math.min(100, (d.pct || 0) * 100)}%"></span></div></td></tr>`).join('')
+      || `<tr><td colspan="4" class="empty">Sem dados no período.</td></tr>`;
+    body = `<div class="table-wrap" style="box-shadow:none"><table>
+      <thead><tr><th>Item</th><th class="num">Valor</th><th class="num">% Total</th><th>Part.</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  } else { body = `<div class="chart-canvas-wrap"><canvas id="${canvasId}"></canvas></div>`; }
+  const eye = view === 'tabela' ? '' : eyeToggle(canvasId, labelOn, view === 'pizza' ? '%' : 'Valores');
+  const dl = view === 'tabela' ? '' : chartDlBtn(canvasId, dlName || titulo);
+  return `<div class="card chart-box" style="margin-top:14px"><h3><span class="ch-title">${esc(titulo)}</span>${seguidor}<span class="ch-actions">${eye}${dl}</span></h3>${body}</div>`;
 }
 
 // Botão "expandir/recolher todos os grupos" + fiação. Para tabelas com .grp-row[data-grp] e tr[data-grpcat].

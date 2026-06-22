@@ -5,7 +5,7 @@ import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
-import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
+import { kpisResumoHtml, cardReceitaDespesa, cardLucro, montarChartsResumo } from './resumo.js';
 
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
@@ -106,7 +106,8 @@ export function render(container) {
     <div class="section-title" style="margin-top:18px">📊 Visão de Caixa</div>
     ${kpisResumoHtml(d)}
     <div class="section-title">📉 Gráficos</div>
-    ${chartsResumoHtml(d)}
+    ${cardReceitaDespesa(d)}
+    ${cardLucro(d)}
 
     <div class="section-title">🔮 Projeção de caixa (próximos 30 dias)</div>
     <div class="card chart-box"><h3>Saldo projetado ${chartDlBtn('ch-proj', 'Projecao-de-caixa')}</h3><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
