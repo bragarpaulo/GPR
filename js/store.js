@@ -252,7 +252,7 @@ export function novaVenda(base = {}) {
   const s = active();
   return { id: uid('v'), dataVenda: '', pedido: '', canalId: s.canais[0]?.id || '', categoriaReceitaId: s.receitaCategorias[0]?.id || 'rec_bruta', produto: '', cliente: '', valor: 0, dataVencimento: '', dataRecebimento: '', contaId: s.contas[0]?.id || '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
 }
-export function addVenda(base) { update(s => s.vendas.push(novaVenda(base))); }
+export function addVenda(base, opts) { let nova; update(s => { nova = novaVenda(base); s.vendas.push(nova); }, opts); return nova; }
 export function addVendasLote(lista) { update(s => { for (const v of lista) s.vendas.push(novaVenda(v)); }); }
 export function duplicarVenda(id) { update(s => { const i = s.vendas.findIndex(v => v.id === id); if (i >= 0) s.vendas.splice(i + 1, 0, { ...s.vendas[i], id: uid('v'), recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '' }); }); }
 export function removerVenda(id) { update(s => { s.vendas = s.vendas.filter(v => v.id !== id); }); }
@@ -273,7 +273,7 @@ export function novaDespesa(base = {}) {
   const s = active();
   return { id: uid('d'), dataVencimento: '', mesCompetencia: '', descricao: '', categoriaId: s.categorias[0]?.id || '', valor: 0, fornecedor: '', contaId: s.contas[0]?.id || '', formaPagamento: 'PIX', dataPagamentoReal: '', obs: '', recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '', ...base };
 }
-export function addDespesa(base) { update(s => s.despesas.push(novaDespesa(base))); }
+export function addDespesa(base, opts) { let nova; update(s => { nova = novaDespesa(base); s.despesas.push(nova); }, opts); return nova; }
 export function addDespesasLote(lista) { update(s => { for (const d of lista) s.despesas.push(novaDespesa(d)); }); }
 export function duplicarDespesa(id) { update(s => { const i = s.despesas.findIndex(d => d.id === id); if (i >= 0) s.despesas.splice(i + 1, 0, { ...s.despesas[i], id: uid('d'), recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '' }); }); }
 export function removerDespesa(id) { update(s => { s.despesas = s.despesas.filter(d => d.id !== id); }); }
