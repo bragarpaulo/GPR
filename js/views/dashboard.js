@@ -3,7 +3,7 @@ import {
   getState, setPeriodoMeses, setUiCampo, setDespesasFiltro, setVendasFiltro, chartLabelOn,
 } from '../store.js';
 import { calcDashboard } from '../calc.js';
-import { pageHead, seg, exportToolbar, wireExport, eyeToggle, kpi } from '../ui.js';
+import { pageHead, seg, eyeToggle, kpi, chartDlBtn } from '../ui.js';
 import { fmtBRL0, fmtPct, esc } from '../util.js';
 import * as charts from '../charts.js';
 import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
@@ -21,7 +21,8 @@ function widget(titulo, view, data, segName, drillAttr) {
       <tbody>${rows}</tbody></table></div>`;
   } else { body = `<div class="chart-canvas-wrap"><canvas id="cv-${segName}"></canvas></div>`; }
   const eye = view === 'tabela' ? '' : eyeToggle(`cv-${segName}`, chartLabelOn(`cv-${segName}`), view === 'pizza' ? '%' : 'Valores');
-  return `<div class="card chart-box"><h3>${esc(titulo)} ${seguidor} ${eye}</h3>${body}</div>`;
+  const dl = view === 'tabela' ? '' : chartDlBtn(`cv-${segName}`, titulo);
+  return `<div class="card chart-box"><h3>${esc(titulo)} ${seguidor} ${eye}${dl}</h3>${body}</div>`;
 }
 
 export function render(container) {
@@ -35,7 +36,6 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Dashboard', `Visão geral — ${d.periodoLabel}`)}
-    ${exportToolbar()}
 
     <div class="section-title" style="margin-top:0">Total do Ano · ${d.ano}</div>
     <div class="grid kpis kpis-year">
@@ -62,7 +62,6 @@ export function render(container) {
   else if (catView === 'barras') charts.barras('cv-cat', catData.map(c => c.label), catData.map(c => c.valor), (i) => drillCat(catData[i]), true, chartLabelOn('cv-cat'));
 
   wire(container);
-  wireExport(container, 'Dashboard');
 }
 
 function drillCat(c) { if (!c) return; setDespesasFiltro({ categoria: c.id }); location.hash = '#despesas'; }

@@ -184,6 +184,16 @@ document.addEventListener('click', (e) => {
   if (eye) { e.preventDefault(); store.toggleChartLabel(eye.dataset.eye); }
 });
 
+// Baixar um gráfico específico como PNG (fundo branco p/ compartilhar).
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-chartdl]'); if (!b) return;
+  e.preventDefault();
+  const cv = document.getElementById(b.dataset.chartdl); if (!cv) return;
+  const tmp = document.createElement('canvas'); tmp.width = cv.width; tmp.height = cv.height;
+  const ctx = tmp.getContext('2d'); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, tmp.width, tmp.height); ctx.drawImage(cv, 0, 0);
+  const a = document.createElement('a'); a.href = tmp.toDataURL('image/png'); a.download = (b.dataset.dlname || 'grafico') + '.png'; a.click();
+});
+
 applyTema();
 if (!location.hash) location.hash = '#inicio';
 buildNav();

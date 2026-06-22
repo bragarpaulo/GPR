@@ -2,7 +2,7 @@
 import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
-import { pageHead, thMeses, moneyInput, exportToolbar, wireExport, delta } from '../ui.js';
+import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
 import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
@@ -84,7 +84,6 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Fluxo de Caixa', `Resumo, projeção e previsões · ${ano}`)}
-    ${exportToolbar()}
 
     <div class="fluxo-hero">
       <div class="fluxo-hero-main">
@@ -110,7 +109,7 @@ export function render(container) {
     ${chartsResumoHtml(d)}
 
     <div class="section-title">🔮 Projeção de caixa (próximos 30 dias)</div>
-    <div class="card chart-box"><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
+    <div class="card chart-box"><h3>Saldo projetado ${chartDlBtn('ch-proj', 'Projecao-de-caixa')}</h3><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
 
     <div class="section-title">⏱ Previsão por prazo</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
@@ -154,7 +153,6 @@ export function render(container) {
   charts.sparkline('ch-sp-ger', f.resultado, f.resultado.reduce((a, b) => a + b, 0) >= 0 ? '#16A34A' : '#EF4444');
   montarChartsResumo(d);
   wire(container);
-  wireExport(container, 'Fluxo-de-Caixa');
 }
 
 function wire(container) {

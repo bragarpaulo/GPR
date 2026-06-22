@@ -1,7 +1,7 @@
 // views/metas.js — Controle de Metas (painel YTD + inteligência: badges, alertas, projeção, ranking).
 import { getState } from '../store.js';
 import { calcControleMetas, calcMetaxReal } from '../calc.js';
-import { pageHead, gauge, fmtBRL0, fmtPct, exportToolbar, wireExport } from '../ui.js';
+import { pageHead, gauge, fmtBRL0, fmtPct } from '../ui.js';
 import { esc } from '../util.js';
 
 const BADGE = {
@@ -53,7 +53,6 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Controle de Metas', `Acompanhamento acumulado até ${m.mesLabel} · ${m.ano}`)}
-    ${exportToolbar()}
     <div class="callout">Indicadores <strong>YTD</strong> (do início do ano até hoje). A <strong>projeção</strong> estima o total do ano mantendo o ritmo atual.</div>
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));margin-top:14px">
       ${cardGauge(m.receita, 'var(--green)', 'Meta de Receita', m.receita.real, m.receita.meta)}
@@ -70,5 +69,4 @@ export function render(container) {
         <tbody>${canalRows}</tbody>
       </table>
     </div>`;
-  wireExport(container, 'Controle-de-Metas', { modo: 'tabela' });
 }

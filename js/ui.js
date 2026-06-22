@@ -82,6 +82,11 @@ export function eyeToggle(id, on, label = 'Valores') {
   return `<button class="chart-eye no-print ${on ? '' : 'off'}" data-eye="${id}" aria-pressed="${on}" title="${on ? 'Ocultar' : 'Mostrar'} ${label.toLowerCase()} no gráfico">${on ? '👁' : '🙈'} ${esc(label)}</button>`;
 }
 
+// Botão de baixar UM gráfico como PNG (vai no cabeçalho do card do gráfico).
+export function chartDlBtn(canvasId, nome) {
+  return `<button class="chart-eye no-print" data-chartdl="${canvasId}" data-dlname="${esc(nome || 'grafico')}" title="Baixar este gráfico (PNG)">⬇ PNG</button>`;
+}
+
 // Mini-legenda de cores de status (vendas/despesas). Usa as mesmas classes st-* das linhas.
 export function statusLegend(itens) {
   return `<div class="status-legend no-print">` + itens.map(i => `<span class="status-pill ${i.cls}">${esc(i.label)}</span>`).join('') + `</div>`;

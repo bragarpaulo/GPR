@@ -3,7 +3,7 @@
 import { getState, addDespesa, duplicarDespesa, removerDespesa, removerDespesas, removerDespesaAFrente, setDespesaCampo, setDespesasFiltro, setDespesasSort, ensureFornecedor, aplicarRecorrenciaDespesa, nomeCategoria, nomeConta } from '../store.js';
 import { despesaDerivada } from '../calc.js';
 import { STATUS_DESPESA, FORMAS_PAGAMENTO, MESES } from '../config.js';
-import { pageHead, options, badgeDespesa, moneyInput, exportToolbar, wireExport, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
+import { pageHead, options, badgeDespesa, moneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
 import { esc, num, fmtBRL0, norm, anosSelecionados, anoCompetencia, chavesAno, anoAtivo } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
@@ -78,7 +78,6 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Lançamento de Despesas', 'Mostra os lançamentos do período selecionado no topo. Clique no status p/ filtrar; no 🔁 p/ repetir; nos cabeçalhos p/ ordenar.')}
-    ${exportToolbar()}
     ${statusFilterChips(LEGENDA, filtro.status || [])}
     <div class="toolbar">
       ${addBtn}
@@ -106,7 +105,6 @@ export function render(container) {
 
   wire(container);
   attachAutocomplete(container, { selector: 'input[data-ac="fornecedor"]', getSource: () => getState().fornecedores, onPick: (inp, val) => { setDespesaCampo(inp.dataset.id, 'fornecedor', val, { silent: true }); ensureFornecedor(val); } });
-  wireExport(container, 'Lancamento-Despesas', { modo: 'tabela' });
   if (_scrollNew) { _scrollNew = false; requestAnimationFrame(() => focarNova(container)); }
 }
 

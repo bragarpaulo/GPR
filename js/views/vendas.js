@@ -3,7 +3,7 @@
 import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta } from '../store.js';
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
-import { pageHead, options, badgeVenda, moneyInput, exportToolbar, wireExport, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
+import { pageHead, options, badgeVenda, moneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
 import { esc, num, fmtBRL0, norm, noPeriodo, anosSelecionados } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
@@ -70,7 +70,6 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Lançamento de Vendas', 'Mostra os lançamentos do período selecionado no topo. Clique no status p/ filtrar; no 🔁 p/ repetir; nos cabeçalhos p/ ordenar.')}
-    ${exportToolbar()}
     ${statusFilterChips(LEGENDA, filtro.status || [])}
     <div class="toolbar">
       ${addBtn}
@@ -97,7 +96,6 @@ export function render(container) {
 
   wire(container, s);
   attachAutocomplete(container, { selector: 'input[data-ac="cliente"]', getSource: () => getState().clientes, onPick: (inp, val) => { setVendaCampo(inp.dataset.id, 'cliente', val, { silent: true }); ensureCliente(val); } });
-  wireExport(container, 'Lancamento-Vendas', { modo: 'tabela' });
   if (_scrollNew) { _scrollNew = false; requestAnimationFrame(() => focarNova(container)); }
 }
 
