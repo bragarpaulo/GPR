@@ -27,55 +27,75 @@ function lucroStatsLinha(serie) {
   ]);
 }
 
-// 3 grupos de KPIs: econômico + Caixa do Mês + Provisões.
-export function kpisResumoHtml(d) {
+// Cabeçalho padrão de card de gráfico: título à esquerda + ações (👁 ⬇) à direita.
+function chartHead(titulo, id, nome) {
+  return `<h3><span class="ch-title">${esc(titulo)}</span><span class="ch-actions">${eyeToggle(id, chartLabelOn(id))}${chartDlBtn(id, nome)}</span></h3>`;
+}
+
+// --- KPIs granulares (Dashboard compõe na ordem que quiser; Fluxo usa o combinado) ---
+export function kpisEconomico(d) {
   return `
     <div class="grid kpis">
-      ${kpi('Receita (Entradas)', fmtBRL0(d.receita), { variant: 'k-green', cls: 'green', route: 'vendas' })}
-      ${kpi('Recebido à vista', fmtBRL0(d.aVista), { variant: 'k-blue', route: 'vendas' })}
-      ${kpi('Vendido a prazo', fmtBRL0(d.aPrazo), { variant: 'k-purple', route: 'vendas' })}
-      ${kpi('Despesa', fmtBRL0(d.despesaTotal), { variant: 'k-red', cls: 'red', route: 'despesas' })}
-      ${kpi('Lucro Líquido', fmtBRL0(d.lucro), { variant: d.lucro >= 0 ? 'k-green' : 'k-red', cls: d.lucro >= 0 ? 'green' : 'red', route: 'dre' })}
-    </div>
+      ${kpi('💰 Receita (Entradas)', fmtBRL0(d.receita), { variant: 'k-green', cls: 'green', route: 'vendas' })}
+      ${kpi('💵 Recebido à vista', fmtBRL0(d.aVista), { variant: 'k-blue', route: 'vendas' })}
+      ${kpi('⏳ Vendido a prazo', fmtBRL0(d.aPrazo), { variant: 'k-purple', route: 'vendas' })}
+      ${kpi('💸 Despesa', fmtBRL0(d.despesaTotal), { variant: 'k-red', cls: 'red', route: 'despesas' })}
+      ${kpi('📈 Lucro Líquido', fmtBRL0(d.lucro), { variant: d.lucro >= 0 ? 'k-green' : 'k-red', cls: d.lucro >= 0 ? 'green' : 'red', route: 'dre' })}
+    </div>`;
+}
+export function kpisCaixaProvisoes(d) {
+  return `
     <div class="section-title">Caixa do Mês</div>
     <div class="grid kpis">
-      ${kpi('Saldo atual', fmtBRL0(d.saldoAtual), { variant: 'k-blue', cls: 'blue', route: 'fluxo' })}
-      ${kpi('Recebimentos', fmtBRL0(d.recebimentos), { variant: 'k-green', cls: 'green', route: 'vendas' })}
-      ${kpi('Pagamentos', fmtBRL0(d.pagamentos), { variant: 'k-red', cls: 'red', route: 'despesas' })}
-      ${kpi('Caixa Gerado', fmtBRL0(d.geracaoCaixa), { variant: d.geracaoCaixa >= 0 ? 'k-green' : 'k-red', cls: d.geracaoCaixa >= 0 ? 'green' : 'red', route: 'fluxo' })}
+      ${kpi('🏦 Saldo atual', fmtBRL0(d.saldoAtual), { variant: 'k-blue', cls: 'blue', route: 'fluxo' })}
+      ${kpi('📥 Recebimentos', fmtBRL0(d.recebimentos), { variant: 'k-green', cls: 'green', route: 'vendas' })}
+      ${kpi('📤 Pagamentos', fmtBRL0(d.pagamentos), { variant: 'k-red', cls: 'red', route: 'despesas' })}
+      ${kpi('💵 Caixa Gerado', fmtBRL0(d.geracaoCaixa), { variant: d.geracaoCaixa >= 0 ? 'k-green' : 'k-red', cls: d.geracaoCaixa >= 0 ? 'green' : 'red', route: 'fluxo' })}
     </div>
     <div class="section-title">Provisões</div>
     <div class="grid kpis">
-      ${kpi2('Saldo Provisionado', [['Mês atual', fmtBRL0(d.saldoProvMes)], ['Próximos meses', fmtBRL0(d.saldoProvProx)]], { variant: 'k-purple', route: 'fluxo' })}
-      ${kpi2('Contas a Receber', [['Mês atual', fmtBRL0(d.contasReceberMes)], ['Próximos meses', fmtBRL0(d.contasReceberProx)]], { variant: 'k-blue', route: 'fluxo' })}
-      ${kpi2('Contas a Pagar', [['Mês atual', fmtBRL0(d.contasPagarMes)], ['Total', fmtBRL0(d.contasPagarTotal)]], { variant: 'k-red', route: 'fluxo' })}
-      ${kpi('Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '', route: 'vendas' })}
+      ${kpi2('🔮 Saldo Provisionado', [['Mês atual', fmtBRL0(d.saldoProvMes)], ['Próximos meses', fmtBRL0(d.saldoProvProx)]], { variant: 'k-purple', route: 'fluxo' })}
+      ${kpi2('📥 Contas a Receber', [['Mês atual', fmtBRL0(d.contasReceberMes)], ['Próximos meses', fmtBRL0(d.contasReceberProx)]], { variant: 'k-blue', route: 'fluxo' })}
+      ${kpi2('📤 Contas a Pagar', [['Mês atual', fmtBRL0(d.contasPagarMes)], ['Total', fmtBRL0(d.contasPagarTotal)]], { variant: 'k-red', route: 'fluxo' })}
+      ${kpi('⚠️ Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '', route: 'vendas' })}
     </div>`;
 }
+export function kpisResumoHtml(d) { return kpisEconomico(d) + kpisCaixaProvisoes(d); }
 
-// 3 gráficos-resumo (Receita×Despesa×Lucro, Recebimentos×Pagamentos×Geração e Lucro mês a mês).
-export function chartsResumoHtml(d) {
+// --- Cards de gráfico granulares ---
+export function cardReceitaDespesa(d) {
   const margem = d.receita ? d.lucro / d.receita : '';
   const margemAnual = d.totalAnualReceita ? d.totalAnualLucro / d.totalAnualReceita : '';
   return `
     <div class="card chart-box">
-      <h3>Receita × Despesa × Lucro (ano) ${eyeToggle('ch-recdesp', chartLabelOn('ch-recdesp'))}${chartDlBtn('ch-recdesp', 'Receita-Despesa-Lucro')}<span class="total-anual">Total Anual<b>${fmtBRL0(d.totalAnualReceita)}</b></span></h3>
+      ${chartHead('Receita × Despesa × Lucro (ano)', 'ch-recdesp', 'Receita-Despesa-Lucro')}
       <div class="chart-canvas-wrap"><canvas id="ch-recdesp"></canvas></div>
       ${resumoLinha([[' Receita', fmtBRL0(d.receita), 'pos'], [' Despesa', fmtBRL0(d.despesaTotal), 'neg'], [' Lucro', fmtBRL0(d.lucro), d.lucro >= 0 ? 'pos' : 'neg'], [' Margem', margem === '' ? '—' : fmtPct(margem)]])}
       ${totalAnualLinha([[' Receita (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Despesa (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Lucro (ano)', fmtBRL0(d.totalAnualLucro), d.totalAnualLucro >= 0 ? 'pos' : 'neg'], [' Margem (ano)', margemAnual === '' ? '—' : fmtPct(margemAnual)]])}
-    </div>
+    </div>`;
+}
+export function cardLucro(d) {
+  const margemAnual = d.totalAnualReceita ? d.totalAnualLucro / d.totalAnualReceita : '';
+  return `
     <div class="card chart-box" style="margin-top:14px">
-      <h3>Recebimentos × Pagamentos × Geração de Caixa (ano) ${eyeToggle('ch-recpag', chartLabelOn('ch-recpag'))}${chartDlBtn('ch-recpag', 'Recebimentos-Pagamentos')}<span class="total-anual">Geração no ano<b>${fmtBRL0(d.totalAnualGeracao)}</b></span></h3>
-      <div class="chart-canvas-wrap"><canvas id="ch-recpag"></canvas></div>
-      ${resumoLinha([[' Recebimentos', fmtBRL0(d.recebimentos), 'pos'], [' Pagamentos', fmtBRL0(d.pagamentos), 'neg'], [' Geração', fmtBRL0(d.geracaoCaixa), d.geracaoCaixa >= 0 ? 'pos' : 'neg']])}
-      ${totalAnualLinha([[' Recebimentos (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Pagamentos (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
-    </div>
-    <div class="card chart-box" style="margin-top:14px">
-      <h3>Lucro mês a mês ${eyeToggle('ch-lucro', chartLabelOn('ch-lucro'))}${chartDlBtn('ch-lucro', 'Lucro-mes-a-mes')}<span class="total-anual">Lucro no ano<b class="${d.totalAnualLucro >= 0 ? 'pos' : 'neg'}">${fmtBRL0(d.totalAnualLucro)}</b></span></h3>
+      ${chartHead('Lucro mês a mês', 'ch-lucro', 'Lucro-mes-a-mes')}
       <div class="chart-canvas-wrap"><canvas id="ch-lucro"></canvas></div>
       ${lucroStatsLinha(d.serieLucro)}
       ${totalAnualLinha([[' Lucro (ano)', fmtBRL0(d.totalAnualLucro), d.totalAnualLucro >= 0 ? 'pos' : 'neg'], [' Margem (ano)', margemAnual === '' ? '—' : fmtPct(margemAnual)]])}
     </div>`;
+}
+export function cardRecebPag(d) {
+  return `
+    <div class="card chart-box">
+      ${chartHead('Recebimentos × Pagamentos × Geração de Caixa (ano)', 'ch-recpag', 'Recebimentos-Pagamentos')}
+      <div class="chart-canvas-wrap"><canvas id="ch-recpag"></canvas></div>
+      ${resumoLinha([[' Recebimentos', fmtBRL0(d.recebimentos), 'pos'], [' Pagamentos', fmtBRL0(d.pagamentos), 'neg'], [' Geração', fmtBRL0(d.geracaoCaixa), d.geracaoCaixa >= 0 ? 'pos' : 'neg']])}
+      ${totalAnualLinha([[' Recebimentos (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Pagamentos (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
+    </div>`;
+}
+// Combinado (Fluxo de Caixa): os 3 cards em sequência.
+export function chartsResumoHtml(d) {
+  return cardReceitaDespesa(d) + cardRecebPag(d).replace('class="card chart-box"', 'class="card chart-box" style="margin-top:14px"') + cardLucro(d);
 }
 
 export function montarChartsResumo(d, onClickMes) {

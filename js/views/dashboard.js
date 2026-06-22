@@ -3,10 +3,10 @@ import {
   getState, setPeriodoMeses, setUiCampo, setDespesasFiltro, setVendasFiltro, chartLabelOn,
 } from '../store.js';
 import { calcDashboard } from '../calc.js';
-import { pageHead, seg, eyeToggle, kpi, chartDlBtn } from '../ui.js';
+import { pageHead, seg, eyeToggle, chartDlBtn } from '../ui.js';
 import { fmtBRL0, fmtPct, esc } from '../util.js';
 import * as charts from '../charts.js';
-import { kpisResumoHtml, chartsResumoHtml, montarChartsResumo } from './resumo.js';
+import { kpisEconomico, kpisCaixaProvisoes, cardReceitaDespesa, cardLucro, cardRecebPag, montarChartsResumo } from './resumo.js';
 
 function widget(titulo, view, data, segName, drillAttr) {
   const seguidor = seg(segName, [{ val: 'pizza', label: 'Pizza' }, { val: 'barras', label: 'Barras' }, { val: 'tabela', label: 'Tabela' }], view);
@@ -22,7 +22,7 @@ function widget(titulo, view, data, segName, drillAttr) {
   } else { body = `<div class="chart-canvas-wrap"><canvas id="cv-${segName}"></canvas></div>`; }
   const eye = view === 'tabela' ? '' : eyeToggle(`cv-${segName}`, chartLabelOn(`cv-${segName}`), view === 'pizza' ? '%' : 'Valores');
   const dl = view === 'tabela' ? '' : chartDlBtn(`cv-${segName}`, titulo);
-  return `<div class="card chart-box"><h3>${esc(titulo)} ${seguidor} ${eye}${dl}</h3>${body}</div>`;
+  return `<div class="card chart-box"><h3><span class="ch-title">${esc(titulo)}</span>${seguidor}<span class="ch-actions">${eye}${dl}</span></h3>${body}</div>`;
 }
 
 export function render(container) {
@@ -32,23 +32,18 @@ export function render(container) {
   const sortDir = (dir, arr) => dir === 'asc' ? [...arr].sort((a, b) => a.valor - b.valor) : arr;
   const catData = sortDir(s.ui.dashCatSort, d.catDespesas).map(c => ({ id: c.id, label: c.cat, valor: c.valor, pct: c.pct }));
   const canalData = sortDir(s.ui.dashCanalSort, d.canalTot).map(c => ({ id: c.id, label: c.canal, valor: c.valor, pct: c.pct }));
-  const lucroAno = d.totalAnualLucro;
 
   container.innerHTML = `
     ${pageHead('Dashboard', `Visão geral — ${d.periodoLabel}`)}
 
-    <div class="section-title" style="margin-top:0">Total do Ano · ${d.ano}</div>
-    <div class="grid kpis kpis-year">
-      ${kpi('Total faturado (ano)', fmtBRL0(d.totalAnualReceita), { variant: 'k-green', cls: 'green', route: 'vendas' })}
-      ${kpi('Total de despesas (ano)', fmtBRL0(d.totalAnualDespesa), { variant: 'k-red', cls: 'red', route: 'despesas' })}
-      ${kpi('Lucro do ano', fmtBRL0(lucroAno), { variant: lucroAno >= 0 ? 'k-green' : 'k-red', cls: lucroAno >= 0 ? 'green' : 'red', route: 'dre' })}
-    </div>
-
-    ${kpisResumoHtml(d)}
-
-    <div class="section-title">Gráficos</div>
     ${charts.chartOk() ? '' : '<div class="callout warn">Gráficos indisponíveis (Chart.js não carregou).</div>'}
-    ${chartsResumoHtml(d)}
+
+    ${kpisEconomico(d)}
+    ${cardReceitaDespesa(d)}
+    ${cardLucro(d)}
+
+    ${kpisCaixaProvisoes(d)}
+    ${cardRecebPag(d)}
     <div class="grid charts-grid charts-grid-1" style="margin-top:14px">
       ${widget(`Faturamento por canal (${d.periodoLabel})`, canalView, canalData, 'canal', 'data-canal')}
       ${widget(`Despesas por categoria — competência (${d.periodoLabel})`, catView, catData, 'cat', 'data-cat')}

@@ -67,6 +67,44 @@ const barValueLabels = {
   },
 };
 
+// Retângulo arredondado (fallback se ctx.roundRect não existir).
+function roundRect(ctx, x, y, w, h, r) {
+  if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+// Plugin: rótulo de valor (em "pílula") sobre cada ponto das linhas sólidas — destaca a linha de
+// Lucro/Geração na frente das barras. Pula linhas tracejadas (tendência) e séries longas (multi-ano).
+const lineValueLabels = {
+  id: 'lineValueLabels',
+  afterDatasetsDraw(chart) {
+    const { ctx } = chart;
+    if ((chart.data.labels || []).length > 12) return;   // evita poluir no modo multi-ano
+    chart.data.datasets.forEach((ds, di) => {
+      const meta = chart.getDatasetMeta(di);
+      if (meta.type !== 'line' || meta.hidden || ds.borderDash) return;
+      const cor = ds.borderColor || '#1D4ED8';
+      meta.data.forEach((pt, i) => {
+        const val = ds.data[i];
+        if (val == null) return;
+        const txt = compactBRL(val);
+        ctx.save();
+        ctx.font = '800 9.5px Inter, system-ui, sans-serif';
+        const w = ctx.measureText(txt).width + 10, h = 16;
+        const x = pt.x, y = Math.max(pt.y - 14, h);
+        ctx.fillStyle = isDark() ? 'rgba(15,23,42,.95)' : 'rgba(255,255,255,.95)';
+        ctx.strokeStyle = cor; ctx.lineWidth = 1.5;
+        roundRect(ctx, x - w / 2, y - h / 2, w, h, 5); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = cor; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(txt, x, y + 0.5);
+        ctx.restore();
+      });
+    });
+  },
+};
+
 // Plugin: % dentro de cada fatia da pizza (fatias pequenas só no hover).
 const pieLabels = {
   id: 'pieLabels',
@@ -120,24 +158,32 @@ const gridOpts = (brlAxis = 'y') => {
   };
 };
 
+// Linha de destaque (Lucro/Geração) — fica NA FRENTE das barras (order menor), grossa e com pontos.
+const linhaDestaque = (label, data) => ({
+  label, data, type: 'line', order: 0,
+  borderColor: '#1D4ED8', backgroundColor: '#1D4ED8', tension: .3, fill: false,
+  borderWidth: 3, pointRadius: 3, pointHoverRadius: 6,
+  pointBackgroundColor: '#fff', pointBorderColor: '#1D4ED8', pointBorderWidth: 2,
+});
+
 export function receitaDespesa(id, labels, receita, despesa, lucro, onClick, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Receita', data: receita, backgroundColor: '#16A34A', borderRadius: 4 },
-      { label: 'Despesa', data: despesa, backgroundColor: '#EF4444', borderRadius: 4 },
-      { label: 'Lucro', data: lucro, type: 'line', borderColor: '#1D4ED8', backgroundColor: '#1D4ED8', tension: .3, fill: false, pointRadius: 2 },
-    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
+      { label: 'Receita', data: receita, backgroundColor: '#16A34A', borderRadius: 4, order: 1 },
+      { label: 'Despesa', data: despesa, backgroundColor: '#EF4444', borderRadius: 4, order: 1 },
+      linhaDestaque('Lucro', lucro),
+    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels, lineValueLabels] : [],
   }, onClick);
 }
 export function recebPag(id, labels, receb, pag, geracao, onClick, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Recebimentos', data: receb, backgroundColor: '#16A34A', borderRadius: 4 },
-      { label: 'Pagamentos', data: pag, backgroundColor: '#EF4444', borderRadius: 4 },
-      { label: 'Geração de Caixa', data: geracao, type: 'line', borderColor: '#1D4ED8', backgroundColor: '#1D4ED8', tension: .3, fill: false, pointRadius: 2 },
-    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
+      { label: 'Recebimentos', data: receb, backgroundColor: '#16A34A', borderRadius: 4, order: 1 },
+      { label: 'Pagamentos', data: pag, backgroundColor: '#EF4444', borderRadius: 4, order: 1 },
+      linhaDestaque('Geração de Caixa', geracao),
+    ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels, lineValueLabels] : [],
   }, onClick);
 }
 
