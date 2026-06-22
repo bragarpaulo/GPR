@@ -103,7 +103,6 @@ export function render(container) {
       </div>
     </div>
 
-    <div class="section-title" style="margin-top:18px">📊 Visão de Caixa</div>
     ${kpisCaixaProvisoes(d)}
     <div class="section-title">📉 Gráficos</div>
     ${cardReceitaDespesa(d)}
