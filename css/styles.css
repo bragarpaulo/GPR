@@ -333,6 +333,13 @@ button.status-pill.sel { outline: 2px solid var(--primary); outline-offset: 1px;
 .rec-pop-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 .rec-pop-actions button { padding: 7px 12px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; font-weight: 600; cursor: pointer; }
 .rec-pop-actions .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+/* Coluna de seleção + popover de escolha (remover só esta / esta e as próximas) */
+.col-chk { width: 34px; text-align: center; }
+.col-chk input { cursor: pointer; }
+.choice-list { display: flex; flex-direction: column; gap: 6px; }
+.choice-btn { text-align: left; padding: 9px 11px; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }
+.choice-btn:hover { background: var(--surface-2); }
+.choice-btn.danger { color: var(--red); border-color: #fecaca; }
 
 /* Gráficos: 1 por linha (faturamento por canal / despesas por categoria) */
 .charts-grid-1 { grid-template-columns: 1fr !important; }

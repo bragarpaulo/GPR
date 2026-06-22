@@ -142,6 +142,29 @@ export function attachAutocomplete(container, { selector, getSource, onPick }) {
   window.addEventListener('scroll', () => { if (pop.style.display === 'block') posicionar(); }, true);
 }
 
+// ---- Popover de escolha genérico (ex.: remover só esta / esta e as próximas) --------------
+let _choicePop = null;
+export function openChoicePopover(anchor, titulo, opcoes) {
+  if (!_choicePop) {
+    _choicePop = document.createElement('div'); _choicePop.className = 'rec-pop'; _choicePop.style.display = 'none';
+    document.body.appendChild(_choicePop);
+    document.addEventListener('mousedown', (e) => { if (_choicePop.style.display === 'block' && !_choicePop.contains(e.target) && !e.target.closest('[data-rmrec]')) _choicePop.style.display = 'none'; });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') _choicePop.style.display = 'none'; });
+  }
+  const pop = _choicePop;
+  pop.innerHTML = `<div class="rec-pop-title">${esc(titulo)}</div><div class="choice-list"></div>`;
+  const list = pop.querySelector('.choice-list');
+  opcoes.forEach(o => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = `choice-btn ${o.cls || ''}`; b.textContent = o.label;
+    b.onclick = () => { pop.style.display = 'none'; o.run && o.run(); };
+    list.appendChild(b);
+  });
+  pop.style.display = 'block';
+  const r = anchor.getBoundingClientRect();
+  pop.style.left = Math.min(r.left + window.scrollX, window.scrollX + document.documentElement.clientWidth - 260) + 'px';
+  pop.style.top = (r.bottom + window.scrollY + 4) + 'px';
+}
+
 // ---- Popover de recorrência (ancorado num botão-flag da linha) ----------------------------
 let _recPop = null;
 export function openRecPopover(anchor, defaults, onConfirm) {

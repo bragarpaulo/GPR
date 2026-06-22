@@ -2,7 +2,7 @@
 // root = { companies: [empresa...], activeId }. getState() devolve a EMPRESA ATIVA (por referência).
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, GRUPOS } from './config.js';
 import { demoData } from './seed.js';
-import { uid, anosDisponiveis as anosDisponiveisUtil, addMeses, parseISO, mesAno } from './util.js';
+import { uid, anosDisponiveis as anosDisponiveisUtil, addMeses, parseISO, mesAno, norm } from './util.js';
 import { cloudEnabled, cloudLoad, cloudSave, cloudSubscribe } from './cloud.js';
 
 const LS_KEY = 'mapa_financeiro_mvp_v2';
@@ -252,6 +252,16 @@ export function addVenda(base) { update(s => s.vendas.push(novaVenda(base))); }
 export function addVendasLote(lista) { update(s => { for (const v of lista) s.vendas.push(novaVenda(v)); }); }
 export function duplicarVenda(id) { update(s => { const i = s.vendas.findIndex(v => v.id === id); if (i >= 0) s.vendas.splice(i + 1, 0, { ...s.vendas[i], id: uid('v'), recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '' }); }); }
 export function removerVenda(id) { update(s => { s.vendas = s.vendas.filter(v => v.id !== id); }); }
+export function removerVendas(ids) { const set = new Set(ids); update(s => { s.vendas = s.vendas.filter(v => !set.has(v.id)); }); }
+// Remove esta parcela e todas as parcelas FUTURAS do mesmo grupo de recorrência (>= data desta).
+export function removerVendaAFrente(id) {
+  update(s => {
+    const v = s.vendas.find(x => x.id === id); if (!v) return;
+    if (!v.recorrenciaId) { s.vendas = s.vendas.filter(x => x.id !== id); return; }
+    const ref = v.dataVencimento || v.dataVenda;
+    s.vendas = s.vendas.filter(x => x.recorrenciaId !== v.recorrenciaId || (x.dataVencimento || x.dataVenda || '') < ref);
+  });
+}
 export function setVendaCampo(id, campo, valor, opts) { update(s => { const v = s.vendas.find(x => x.id === id); if (v) v[campo] = valor; }, opts); }
 
 // ---- CRUD: Despesas ------------------------------------------------------
@@ -263,6 +273,15 @@ export function addDespesa(base) { update(s => s.despesas.push(novaDespesa(base)
 export function addDespesasLote(lista) { update(s => { for (const d of lista) s.despesas.push(novaDespesa(d)); }); }
 export function duplicarDespesa(id) { update(s => { const i = s.despesas.findIndex(d => d.id === id); if (i >= 0) s.despesas.splice(i + 1, 0, { ...s.despesas[i], id: uid('d'), recorrenciaId: '', recorrenciaPeriodo: '', recorrenciaFim: '' }); }); }
 export function removerDespesa(id) { update(s => { s.despesas = s.despesas.filter(d => d.id !== id); }); }
+export function removerDespesas(ids) { const set = new Set(ids); update(s => { s.despesas = s.despesas.filter(d => !set.has(d.id)); }); }
+export function removerDespesaAFrente(id) {
+  update(s => {
+    const d = s.despesas.find(x => x.id === id); if (!d) return;
+    if (!d.recorrenciaId) { s.despesas = s.despesas.filter(x => x.id !== id); return; }
+    const ref = d.dataVencimento || '';
+    s.despesas = s.despesas.filter(x => x.recorrenciaId !== d.recorrenciaId || (x.dataVencimento || '') < ref);
+  });
+}
 export function setDespesaCampo(id, campo, valor, opts) { update(s => { const d = s.despesas.find(x => x.id === id); if (d) d[campo] = valor; }, opts); }
 
 // ---- Recorrência inline (marca a linha como 1ª parcela e gera as demais até dataFim) -------
@@ -271,11 +290,16 @@ export function aplicarRecorrenciaDespesa(id, periodo, dataFim) {
   const passo = PASSO_REC[periodo]; if (!passo) return;
   update(s => {
     const d = s.despesas.find(x => x.id === id); if (!d || !d.dataVencimento || !dataFim) return;
-    const recId = uid('rec'); const fim = parseISO(dataFim); if (!fim) return;
+    const fim = parseISO(dataFim); if (!fim) return;
+    const recId = d.recorrenciaId || uid('rec');
+    // re-aplicar é idempotente: limpa as parcelas antigas do MESMO grupo (mantém a âncora)
+    s.despesas = s.despesas.filter(x => x.id === d.id || x.recorrenciaId !== recId);
     d.recorrenciaId = recId; d.recorrenciaPeriodo = periodo; d.recorrenciaFim = dataFim;
+    // não duplica: pula um mês que já tenha uma despesa equivalente (mesma descrição+categoria+vencimento)
+    const jaExiste = (iso) => s.despesas.some(x => x.id !== d.id && x.dataVencimento === iso && norm(x.descricao) === norm(d.descricao) && x.categoriaId === d.categoriaId);
     let iso = addMeses(d.dataVencimento, passo), guard = 0;
     while (iso && parseISO(iso) <= fim && guard++ < 600) {
-      s.despesas.push(novaDespesa({ ...d, id: undefined, dataVencimento: iso, mesCompetencia: mesAno(iso), dataPagamentoReal: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
+      if (!jaExiste(iso)) s.despesas.push(novaDespesa({ ...d, id: undefined, dataVencimento: iso, mesCompetencia: mesAno(iso), dataPagamentoReal: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
       iso = addMeses(iso, passo);
     }
   });
@@ -285,11 +309,14 @@ export function aplicarRecorrenciaVenda(id, periodo, dataFim) {
   update(s => {
     const v = s.vendas.find(x => x.id === id); if (!v) return;
     const baseData = v.dataVencimento || v.dataVenda; if (!baseData || !dataFim) return;
-    const recId = uid('rec'); const fim = parseISO(dataFim); if (!fim) return;
+    const fim = parseISO(dataFim); if (!fim) return;
+    const recId = v.recorrenciaId || uid('rec');
+    s.vendas = s.vendas.filter(x => x.id === v.id || x.recorrenciaId !== recId);
     v.recorrenciaId = recId; v.recorrenciaPeriodo = periodo; v.recorrenciaFim = dataFim;
+    const jaExiste = (iso) => s.vendas.some(x => x.id !== v.id && (x.dataVencimento || x.dataVenda) === iso && norm(x.produto) === norm(v.produto) && x.canalId === v.canalId && norm(x.cliente) === norm(v.cliente));
     let iso = addMeses(baseData, passo), guard = 0;
     while (iso && parseISO(iso) <= fim && guard++ < 600) {
-      s.vendas.push(novaVenda({ ...v, id: undefined, dataVenda: iso, dataVencimento: iso, dataRecebimento: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
+      if (!jaExiste(iso)) s.vendas.push(novaVenda({ ...v, id: undefined, dataVenda: iso, dataVencimento: iso, dataRecebimento: '', recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim }));
       iso = addMeses(iso, passo);
     }
   });

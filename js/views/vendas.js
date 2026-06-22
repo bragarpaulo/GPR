@@ -1,9 +1,9 @@
 // views/vendas.js — Lançamento de Vendas. Filtra pelo cabeçalho global (ano+mês); legenda=filtro
 // de status; busca em todas as colunas; recorrência inline (🔁); cliente com autocomplete custom.
-import { getState, addVenda, duplicarVenda, removerVenda, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta } from '../store.js';
+import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta } from '../store.js';
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
-import { pageHead, options, badgeVenda, moneyInput, exportToolbar, wireExport, statusFilterChips, attachAutocomplete, openRecPopover } from '../ui.js';
+import { pageHead, options, badgeVenda, moneyInput, exportToolbar, wireExport, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
 import { esc, num, fmtBRL0, norm, noPeriodo, anosSelecionados } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
@@ -45,6 +45,7 @@ export function render(container) {
     const recBtn = `<button class="rec-flag ${recOn ? 'on' : ''}" data-rec="${v.id}" title="${recOn ? 'Recorrente (' + esc(nomeRecorrencia(v.recorrenciaPeriodo)) + (v.recorrenciaFim ? ', até ' + v.recorrenciaFim : '') + ')' : 'Marcar como recorrente'}">🔁</button>`;
     return `
     <tr data-id="${v.id}" class="${ROWCLS[v.status] || ''}">
+      <td class="col-chk"><input type="checkbox" class="rowchk" value="${v.id}"></td>
       <td><input type="date" data-id="${v.id}" data-campo="dataVenda" value="${esc(v.dataVenda)}"></td>
       <td class="derived">${esc(v.mesVenda)}</td>
       <td><input class="inp-flush" style="width:80px" data-id="${v.id}" data-campo="pedido" value="${esc(v.pedido)}"></td>
@@ -62,10 +63,10 @@ export function render(container) {
       <td><input class="inp-flush" style="min-width:100px" data-id="${v.id}" data-campo="obs" value="${esc(v.obs)}"></td>
       <td class="nowrap">
         <button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${v.id}">⧉</button>
-        <button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-id="${v.id}">🗑</button>
+        <button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-rmrec data-id="${v.id}">🗑</button>
       </td>
     </tr>`;
-  }).join('') || `<tr><td colspan="16" class="empty">Nenhuma venda no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
+  }).join('') || `<tr><td colspan="17" class="empty">Nenhuma venda no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
 
   container.innerHTML = `
     ${pageHead('Lançamento de Vendas', 'Mostra os lançamentos do período selecionado no topo. Clique no status p/ filtrar; no 🔁 p/ repetir; nos cabeçalhos p/ ordenar.')}
@@ -73,6 +74,7 @@ export function render(container) {
     ${statusFilterChips(LEGENDA, filtro.status || [])}
     <div class="toolbar">
       ${addBtn}
+      <button class="btn btn-sm" data-action="del-sel">🗑 Excluir selecionadas</button>
       <input id="f-busca" class="search-grow" type="text" placeholder="🔎 Buscar em qualquer coluna…" value="${esc(filtro.busca)}">
       ${canalChip}
       <div class="spacer"></div>
@@ -81,6 +83,7 @@ export function render(container) {
     <div class="table-wrap tbl-frozen">
       <table>
         <thead><tr>
+          <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
           <th class="sortable" data-sortcol="dataVenda">Data da Venda${arrow('dataVenda')}</th><th>Mês</th><th>Nº Pedido</th><th>Canal</th><th>Categoria</th>
           <th>Produto/Pedido</th><th>Cliente</th><th>Conta</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th><th class="num">Valor à Vista</th>
           <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th><th>Mês/Ano Receb.</th>
@@ -88,7 +91,7 @@ export function render(container) {
           <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th><th></th>
         </tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="16">${addBtn}</td></tr></tfoot>
+        <tfoot><tr><td colspan="17">${addBtn}</td></tr></tfoot>
       </table>
     </div>`;
 
@@ -141,7 +144,28 @@ function wire(container, s) {
     const { action, id } = b.dataset;
     if (action === 'add') { _scrollNew = true; addVenda({}); }
     else if (action === 'dup') duplicarVenda(id);
-    else if (action === 'rm') removerVenda(id);
+    else if (action === 'rm') {
+      const venda = getState().vendas.find(x => x.id === id);
+      if (venda && venda.recorrenciaId) {
+        openChoicePopover(b, 'Venda recorrente — o que remover?', [
+          { label: '🗑 Só esta', run: () => removerVenda(id) },
+          { label: '🗑 Esta e as próximas', cls: 'danger', run: () => removerVendaAFrente(id) },
+          { label: 'Cancelar' },
+        ]);
+      } else removerVenda(id);
+    }
+    else if (action === 'del-sel') {
+      const ids = [...container.querySelectorAll('.rowchk:checked')].map(c => c.value);
+      if (!ids.length) { alert('Marque ao menos uma linha (caixa à esquerda).'); return; }
+      if (confirm(`Excluir ${ids.length} venda(s) selecionada(s)?`)) removerVendas(ids);
+    }
     else if (action === 'limpar-canal') setVendasFiltro({ canal: '' });
+  });
+
+  // Selecionar todas (cabeçalho) — sem re-render
+  container.addEventListener('change', (ev) => {
+    if (ev.target.classList.contains('chk-all')) {
+      container.querySelectorAll('.rowchk').forEach(c => { c.checked = ev.target.checked; });
+    }
   });
 }
