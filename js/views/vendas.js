@@ -3,7 +3,7 @@
 import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta } from '../store.js';
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
-import { pageHead, options, badgeVenda, moneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
+import { pageHead, options, badgeVenda, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
 import { esc, num, fmtBRL0, norm, noPeriodo, anosSelecionados } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
@@ -24,6 +24,7 @@ function rowHtml(v, s) {
   return `
     <tr data-id="${v.id}" class="${ROWCLS[v.status] || ''}">
       <td class="col-chk"><input type="checkbox" class="rowchk" value="${v.id}"></td>
+      <td class="col-acoes nowrap"><button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${v.id}">⧉</button><button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-rmrec data-id="${v.id}">🗑</button></td>
       <td><input type="date" data-id="${v.id}" data-campo="dataVenda" value="${esc(v.dataVenda)}"></td>
       <td class="derived" data-cell="mesVenda">${esc(v.mesVenda)}</td>
       <td><input class="inp-flush" style="width:80px" data-id="${v.id}" data-campo="pedido" value="${esc(v.pedido)}"></td>
@@ -39,10 +40,6 @@ function rowHtml(v, s) {
       <td><input type="date" data-id="${v.id}" data-campo="dataRecebimento" value="${esc(v.dataRecebimento)}"></td>
       <td data-cell="status">${badgeVenda(v.status)}</td>
       <td><input class="inp-flush" style="min-width:100px" data-id="${v.id}" data-campo="obs" value="${esc(v.obs)}"></td>
-      <td class="nowrap">
-        <button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${v.id}">⧉</button>
-        <button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-rmrec data-id="${v.id}">🗑</button>
-      </td>
     </tr>`;
 }
 
@@ -97,11 +94,12 @@ export function render(container) {
       <table>
         <thead><tr>
           <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
+          <th class="col-acoes">Ações</th>
           <th class="sortable" data-sortcol="dataVenda">Data da Venda${arrow('dataVenda')}</th><th>Mês</th><th>Nº Pedido</th><th>Canal</th><th>Categoria</th>
           <th>Produto/Pedido</th><th>Cliente</th><th>Conta</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th><th class="num">Valor à Vista</th>
           <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th><th>Mês/Ano Receb.</th>
           <th class="sortable" data-sortcol="dataRecebimento">Data Recebimento${arrow('dataRecebimento')}</th>
-          <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th><th></th>
+          <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
         </tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td colspan="17">${addBtn}</td></tr></tfoot>
@@ -136,7 +134,7 @@ function wire(container) {
   });
   container.addEventListener('blur', (ev) => {
     const t = ev.target; if (!(t instanceof HTMLInputElement) || !t.classList.contains('money')) return;
-    if (t.dataset.id && t.dataset.campo) { setVendaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true }); atualizarDerivada(container, t.dataset.id); }
+    if (t.dataset.id && t.dataset.campo) { setVendaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true }); t.value = fmtMoneyInput(num(t.value)); atualizarDerivada(container, t.dataset.id); }
   }, true);
   container.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') ev.target.blur(); });
 

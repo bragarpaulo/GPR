@@ -3,7 +3,7 @@
 import { getState, addDespesa, duplicarDespesa, removerDespesa, removerDespesas, removerDespesaAFrente, setDespesaCampo, setDespesasFiltro, setDespesasSort, ensureFornecedor, aplicarRecorrenciaDespesa, nomeCategoria, nomeConta } from '../store.js';
 import { despesaDerivada } from '../calc.js';
 import { STATUS_DESPESA, FORMAS_PAGAMENTO, MESES } from '../config.js';
-import { pageHead, options, badgeDespesa, moneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
+import { pageHead, options, badgeDespesa, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
 import { esc, num, fmtBRL0, norm, anosSelecionados, chavesAno, anoAtivo } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
@@ -42,6 +42,7 @@ function rowHtml(d, s, compOpts) {
   return `
     <tr data-id="${d.id}" class="${ROWCLS[d.status] || ''}">
       <td class="col-chk"><input type="checkbox" class="rowchk" value="${d.id}"></td>
+      <td class="col-acoes nowrap"><button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${d.id}">⧉</button><button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-rmrec data-id="${d.id}">🗑</button></td>
       <td><input type="date" data-id="${d.id}" data-campo="dataVencimento" value="${esc(d.dataVencimento)}"></td>
       <td><select data-id="${d.id}" data-campo="mesCompetencia">${options(compOpts, d.mesCompetencia, { placeholder: '—' })}</select></td>
       <td><input class="inp-flush" style="min-width:130px" data-id="${d.id}" data-campo="descricao" value="${esc(d.descricao)}"></td>
@@ -53,10 +54,6 @@ function rowHtml(d, s, compOpts) {
       <td><input type="date" title="Data do pagamento real (preencher = vira Pago)" data-id="${d.id}" data-campo="dataPagamentoReal" value="${esc(d.dataPagamentoReal)}"></td>
       <td data-cell="status">${badgeDespesa(d.status)}</td>
       <td><input class="inp-flush" style="min-width:100px" data-id="${d.id}" data-campo="obs" value="${esc(d.obs)}"></td>
-      <td class="nowrap">
-        <button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${d.id}">⧉</button>
-        <button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-rmrec data-id="${d.id}">🗑</button>
-      </td>
     </tr>`;
 }
 
@@ -107,12 +104,13 @@ export function render(container) {
       <table>
         <thead><tr>
           <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
+          <th class="col-acoes">Ações</th>
           <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th>
           <th class="sortable" data-sortcol="mesCompetencia">Mês Competência${arrow('mesCompetencia')}</th>
           <th>Descrição</th><th>Categoria</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th>
           <th>Recebedor</th><th>Conta</th><th>Forma Pgto</th>
           <th class="sortable" data-sortcol="dataPagamentoReal">Pago em${arrow('dataPagamentoReal')}</th>
-          <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th><th></th>
+          <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
         </tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td colspan="13">${addBtn}</td></tr></tfoot>
@@ -147,7 +145,7 @@ function wire(container, compOpts) {
   });
   container.addEventListener('blur', (ev) => {
     const t = ev.target; if (!(t instanceof HTMLInputElement) || !t.classList.contains('money')) return;
-    if (t.dataset.id && t.dataset.campo) { setDespesaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true }); atualizarDerivada(container, t.dataset.id); }
+    if (t.dataset.id && t.dataset.campo) { setDespesaCampo(t.dataset.id, t.dataset.campo, num(t.value), { silent: true }); t.value = fmtMoneyInput(num(t.value)); atualizarDerivada(container, t.dataset.id); }
   }, true);
   container.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') ev.target.blur(); });
 

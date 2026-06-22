@@ -3,7 +3,7 @@ import { MESES, STATUS_VENDA, STATUS_DESPESA, PERIODOS_RECORRENCIA } from './con
 import { esc, fmtBRL, fmtBRL0, fmtPct, num, norm } from './util.js';
 
 const _moneyFmt = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-function fmtMoneyInput(v) { return 'R$ ' + _moneyFmt.format(num(v)); }
+export function fmtMoneyInput(v) { return 'R$ ' + _moneyFmt.format(num(v)); }
 
 // Input de MOEDA editável: mostra "R$ 55.000,00"; ao focar, seleciona tudo.
 export function moneyInput(value, attrs = '', width = 130) {

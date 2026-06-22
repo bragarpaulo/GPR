@@ -355,6 +355,24 @@ button.status-pill.sel { outline: 2px solid var(--primary); outline-offset: 1px;
 /* Coluna de seleção + popover de escolha (remover só esta / esta e as próximas) */
 .col-chk { width: 34px; text-align: center; }
 .col-chk input { cursor: pointer; }
+/* Coluna de Ações fixada no início (ao lado da caixa de seleção), grudada na esquerda ao rolar */
+.col-acoes { white-space: nowrap; width: 78px; }
+.tbl-frozen th.col-chk, .tbl-frozen td.col-chk { position: sticky; left: 0; z-index: 2; background: var(--surface); }
+.tbl-frozen th.col-acoes, .tbl-frozen td.col-acoes { position: sticky; left: 34px; z-index: 2; background: var(--surface); box-shadow: 1px 0 0 var(--line); }
+.tbl-frozen thead th.col-chk, .tbl-frozen thead th.col-acoes { z-index: 3; background: var(--surface-2); }
+/* mantém a cor do status nas colunas fixas */
+.tbl-frozen tr.st-ok td.col-chk, .tbl-frozen tr.st-ok td.col-acoes { background: #f4fbf6; }
+.tbl-frozen tr.st-bad td.col-chk, .tbl-frozen tr.st-bad td.col-acoes { background: #fee2e2; }
+.tbl-frozen tr.st-warn td.col-chk, .tbl-frozen tr.st-warn td.col-acoes { background: #fef3c7; }
+.tbl-frozen tr.st-info td.col-chk, .tbl-frozen tr.st-info td.col-acoes { background: #f4f8ff; }
+.tbl-frozen tr:focus-within td.col-chk, .tbl-frozen tr:focus-within td.col-acoes { background: #e8efff; }
+[data-theme="dark"] .tbl-frozen th.col-chk, [data-theme="dark"] .tbl-frozen td.col-chk,
+[data-theme="dark"] .tbl-frozen th.col-acoes, [data-theme="dark"] .tbl-frozen td.col-acoes { background: var(--surface); }
+[data-theme="dark"] .tbl-frozen thead th.col-chk, [data-theme="dark"] .tbl-frozen thead th.col-acoes { background: var(--surface-2); }
+[data-theme="dark"] .tbl-frozen tr.st-ok td.col-chk, [data-theme="dark"] .tbl-frozen tr.st-ok td.col-acoes { background: #142a1d; }
+[data-theme="dark"] .tbl-frozen tr.st-bad td.col-chk, [data-theme="dark"] .tbl-frozen tr.st-bad td.col-acoes { background: #371d22; }
+[data-theme="dark"] .tbl-frozen tr.st-warn td.col-chk, [data-theme="dark"] .tbl-frozen tr.st-warn td.col-acoes { background: #382f10; }
+[data-theme="dark"] .tbl-frozen tr.st-info td.col-chk, [data-theme="dark"] .tbl-frozen tr.st-info td.col-acoes { background: #14233f; }
 .choice-list { display: flex; flex-direction: column; gap: 6px; }
 .choice-btn { text-align: left; padding: 9px 11px; border: 1px solid var(--line); background: var(--surface); border-radius: 9px; font: inherit; font-weight: 600; cursor: pointer; }
 .choice-btn:hover { background: var(--surface-2); }
