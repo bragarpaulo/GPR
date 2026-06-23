@@ -9,7 +9,17 @@ from functools import partial
 DIR = os.path.dirname(os.path.abspath(__file__))
 PORT = 8080
 
-Handler = partial(http.server.SimpleHTTPRequestHandler, directory=DIR)
+
+class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
+    # Sempre servir a versão mais nova no preview (sem cache do navegador).
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store, must-revalidate")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
+
+Handler = partial(NoCacheHandler, directory=DIR)
 socketserver.TCPServer.allow_reuse_address = True
 with socketserver.TCPServer(("127.0.0.1", PORT), Handler) as httpd:
     print(f"Servindo {DIR} em http://127.0.0.1:{PORT}")

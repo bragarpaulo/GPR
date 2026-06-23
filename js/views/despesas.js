@@ -139,7 +139,7 @@ function wire(container, compOpts) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.classList.contains('chk-all')) { container.querySelectorAll('.rowchk').forEach(c => { c.checked = t.checked; }); return; }
-    if (t.id === 'f-busca') { setDespesasFiltro({ busca: t.value }); return; }
+    if (t.id === 'f-busca') return;   // busca é tratada AO VIVO no listener 'input' abaixo
     if (!t.dataset.id || !t.dataset.campo) return;
     const campo = t.dataset.campo, id = t.dataset.id;
     if (campo.startsWith('data')) { if (t.value !== '' && !dataValida(t.value)) return; setDespesaCampo(id, campo, t.value, { silent: true }); atualizarDerivada(container, id); return; }
@@ -150,6 +150,14 @@ function wire(container, compOpts) {
     }
     setDespesaCampo(id, campo, t.value, { silent: true });   // selects silenciosos → não reordena
     atualizarDerivada(container, id);
+  });
+  // Busca AO VIVO: filtra conforme digita/apaga, sem precisar de Enter (restaura foco/cursor após o re-render).
+  container.addEventListener('input', (ev) => {
+    const t = ev.target; if (t.id !== 'f-busca') return;
+    const pos = t.selectionStart;
+    setDespesasFiltro({ busca: t.value });
+    const novo = document.getElementById('f-busca');
+    if (novo) { novo.focus(); try { novo.setSelectionRange(pos, pos); } catch (_) {} }
   });
   container.addEventListener('blur', (ev) => {
     const t = ev.target; if (!(t instanceof HTMLInputElement) || !t.classList.contains('money')) return;

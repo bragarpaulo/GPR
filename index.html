@@ -57,10 +57,13 @@
   </div>
 
   <script>
-    // Registra o Service Worker (network-first) para sempre carregar a versão mais nova após deploy.
+    // Service worker DESATIVADO: era a causa de versões antigas presas no navegador (anônima abria
+    // certo, normal não). Não registramos mais nenhum SW e cancelamos qualquer um já instalado +
+    // limpamos os caches. Assim o site vem sempre direto da rede e Ctrl+Shift+R pega a versão nova.
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
+      navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister())).catch(() => {});
     }
+    if (window.caches) { caches.keys().then(ks => ks.forEach(k => caches.delete(k))).catch(() => {}); }
   </script>
   <script type="module" src="js/app.js"></script>
 </body>
