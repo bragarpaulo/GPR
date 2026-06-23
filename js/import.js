@@ -237,6 +237,9 @@ export function importarArquivo(file, cb) {
       // Anos da empresa
       resumo.anos.forEach(a => { if (a && !s.empresa.anos.includes(a)) s.empresa.anos.push(a); });
       s.empresa.anos = [...new Set(s.empresa.anos)].sort((a, b) => a - b);
+
+      // Mostra os dados importados: ano primário + TODOS os meses (senão cairia no mês vigente e pareceria vazio).
+      s.ui.anosSel = [primaryAno]; s.ui.anoAtivo = primaryAno; s.ui.periodoMeses = [];
     });
 
     resumo.anos = [...resumo.anos].sort();

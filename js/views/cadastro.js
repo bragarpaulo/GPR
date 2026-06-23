@@ -176,7 +176,7 @@ function wire(container, ano) {
   container.addEventListener('change', (ev) => {
     const t = ev.target;
     if (t.id === 'import-file') {
-      if (t.files && t.files[0]) importarArquivo(t.files[0], (r) => alert(`Empresa "${r.empresa}" criada!\n\n${r.vendas} venda(s) e ${r.despesas} despesa(s).\nAnos: ${r.anos.join(', ') || '—'}\nCriados: ${r.canais} canal(is), ${r.contas} conta(s), ${r.fornecedores} recebedor(es), ${r.categorias} categoria(s).`));
+      if (t.files && t.files[0]) importarArquivo(t.files[0], (r) => { alert(`Empresa "${r.empresa}" criada!\n\n${r.vendas} venda(s) e ${r.despesas} despesa(s).\nAnos: ${r.anos.join(', ') || '—'}\nCriados: ${r.canais} canal(is), ${r.contas} conta(s), ${r.fornecedores} recebedor(es), ${r.categorias} categoria(s).`); location.hash = '#dashboard'; });
       t.value = '';
       return;
     }
