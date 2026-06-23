@@ -2,7 +2,7 @@
 // root = { companies: [empresa...], activeId }. getState() devolve a EMPRESA ATIVA (por referência).
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, GRUPOS } from './config.js';
 import { demoData } from './seed.js';
-import { uid, anosDisponiveis as anosDisponiveisUtil, addMeses, parseISO, mesAno, norm } from './util.js';
+import { uid, anosDisponiveis as anosDisponiveisUtil, addMeses, parseISO, mesAno } from './util.js';
 import { cloudEnabled, cloudLoad, cloudSave, cloudSubscribe } from './cloud.js';
 
 const LS_KEY = 'mapa_financeiro_mvp_v2';
@@ -312,7 +312,7 @@ export function aplicarRecorrenciaDespesa(id, periodo, dataFim) {
     if (!d.mesCompetencia) d.mesCompetencia = mesAno(d.dataVencimento);   // âncora: competência = mês do vencimento
     if (!d.parcela) d.parcela = '1';   // âncora = parcela 1; parcelas seguintes numeradas 2, 3…
     // não duplica: pula um mês que já tenha uma despesa equivalente (mesma descrição+categoria+vencimento)
-    const jaExiste = (iso) => s.despesas.some(x => x.id !== d.id && x.dataVencimento === iso && norm(x.descricao) === norm(d.descricao) && x.categoriaId === d.categoriaId);
+    const jaExiste = (iso) => s.despesas.some(x => x.id !== d.id && x.recorrenciaId === recId && x.dataVencimento === iso);
     let iso = addMeses(d.dataVencimento, passo), guard = 0, n = 1;
     while (iso && parseISO(iso) <= fim && guard++ < 600) {
       if (!jaExiste(iso)) { n++; s.despesas.push(novaDespesa({ ...d, id: undefined, dataVencimento: iso, mesCompetencia: mesAno(iso), dataPagamentoReal: '', parcela: String(n), recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim })); }
@@ -332,7 +332,7 @@ export function aplicarRecorrenciaVenda(id, periodo, dataFim) {
     if (!v.dataVencimento) v.dataVencimento = baseData;   // parcela 1 (âncora) ganha vencimento = data do cadastro
     if (!v.parcela) v.parcela = '1';   // âncora = parcela 1; parcelas seguintes numeradas 2, 3…
     // Parcelas da MESMA venda: a data da venda (e o mês) ficam fixas; só o vencimento avança.
-    const jaExiste = (iso) => s.vendas.some(x => x.id !== v.id && x.dataVencimento === iso && norm(x.produto) === norm(v.produto) && x.canalId === v.canalId && norm(x.cliente) === norm(v.cliente));
+    const jaExiste = (iso) => s.vendas.some(x => x.id !== v.id && x.recorrenciaId === recId && x.dataVencimento === iso);
     let iso = addMeses(baseData, passo), guard = 0, n = 1;
     while (iso && parseISO(iso) <= fim && guard++ < 600) {
       if (!jaExiste(iso)) { n++; s.vendas.push(novaVenda({ ...v, id: undefined, dataVenda: v.dataVenda || iso, dataVencimento: iso, dataRecebimento: '', parcela: String(n), recorrenciaId: recId, recorrenciaPeriodo: periodo, recorrenciaFim: dataFim })); }
