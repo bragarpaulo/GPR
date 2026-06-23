@@ -68,7 +68,7 @@ export function renderDemonstrativo(container, { titulo, sub, result }) {
   container.innerHTML = `
     ${pageHead(titulo, sub)}
     ${exportToolbar(collapseAllBtn(), { only: ['pdf'] })}
-    <div class="table-wrap">
+    <div class="table-wrap tbl-wide">
       <table>
         <thead><tr><th style="min-width:280px">Grupo / Categoria</th>${thMeses(anoAtivo(s))}</tr></thead>
         <tbody>${body}</tbody>

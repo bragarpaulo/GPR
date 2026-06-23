@@ -167,6 +167,23 @@ function currentRoute() {
   const h = (location.hash || '').replace('#', '');
   return VIEWS[h] ? h : 'inicio';
 }
+// Barra de rolagem horizontal "fixa no rodapé da janela" p/ tabelas largas: cria uma barra sticky
+// (bottom:0) sincronizada com o scroll lateral de cada .table-wrap larga.
+function wireStickyHScroll(container) {
+  container.querySelectorAll('.table-wrap:not(.tbl-frozen)').forEach(tw => {
+    const tabela = tw.querySelector('table'); if (!tabela) return;
+    const bar = document.createElement('div'); bar.className = 'hbar';
+    const spacer = document.createElement('div'); bar.appendChild(spacer);
+    tw.insertAdjacentElement('afterend', bar);
+    let lock = false;
+    const sync = () => { const precisa = tw.scrollWidth > tw.clientWidth + 1; bar.style.display = precisa ? '' : 'none'; spacer.style.width = tw.scrollWidth + 'px'; };
+    bar.addEventListener('scroll', () => { if (lock) return; lock = true; tw.scrollLeft = bar.scrollLeft; lock = false; });
+    tw.addEventListener('scroll', () => { if (lock) return; lock = true; bar.scrollLeft = tw.scrollLeft; lock = false; });
+    sync();
+    try { const ro = new ResizeObserver(sync); ro.observe(tabela); ro.observe(tw); } catch (e) {}
+  });
+}
+
 let lastRoute = null;
 function renderView() {
   charts.destroyAll();
@@ -183,6 +200,7 @@ function renderView() {
   try { VIEWS[route].render(root); }
   catch (err) { root.innerHTML = `<div class="callout warn"><strong>Erro ao renderizar.</strong><br>${esc(err.message)}</div>`; console.error(err); }
   navEl.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.route === route));
+  wireStickyHScroll(contentEl);
   renderTopbar();
   renderPeriodBar(route);
   scEl.scrollTop = sameRoute ? sc : 0;

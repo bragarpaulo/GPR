@@ -50,7 +50,7 @@ export function render(container) {
     ${pageHead('Orçamento de Despesas', `Planejamento de ${ano} · Meta de Receita vem dos canais (Cadastro).`)}
     ${exportToolbar(collapseAllBtn())}
     <div class="callout">Edite os valores por categoria. Os grupos e metas são calculados automaticamente. Cada ano tem seu próprio orçamento.</div>
-    <div class="table-wrap" style="margin-top:14px">
+    <div class="table-wrap tbl-wide" style="margin-top:14px">
       <table>
         <thead><tr><th style="min-width:260px">Grupo / Categoria</th>${thMeses(ano)}</tr></thead>
         <tbody>${body}</tbody>

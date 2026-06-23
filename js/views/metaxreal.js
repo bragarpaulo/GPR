@@ -61,7 +61,7 @@ export function render(container) {
     </div>
 
     <div class="section-title">Detalhe mensal (ano inteiro)</div>
-    <div class="table-wrap">
+    <div class="table-wrap tbl-wide">
       <table>
         <thead><tr><th style="min-width:180px">Canal</th>${thMeses(ano)}</tr></thead>
         <tbody>${detalhe || `<tr><td colspan="14" class="empty">Sem dados.</td></tr>`}</tbody>

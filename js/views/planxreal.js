@@ -48,7 +48,7 @@ export function render(container) {
     ${pageHead('Orçado × Realizado — Despesas', `Orçado x Realizado (Total Ano) · ${anoAtivo(s)}`)}
     ${exportToolbar(collapseAllBtn())}
     <div class="hint" style="margin-bottom:10px">Realizado = despesas da DRE (competência). Diferença em vermelho = estourou o orçamento.</div>
-    <div class="table-wrap">
+    <div class="table-wrap tbl-wide">
       <table>
         <thead><tr><th style="min-width:280px">Grupo / Categoria</th><th class="num">Orçado</th><th class="num">Realizado</th><th class="num">Diferença</th><th class="num">% Realizado</th></tr></thead>
         <tbody>${body}</tbody>
