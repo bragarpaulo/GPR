@@ -68,7 +68,7 @@ export function baixarModelo() {
     ['Formas de pagamento válidas: ' + FORMAS_PAGAMENTO.join(', ')],
   ]);
 
-  add('Empresa', [COL_EMPRESA, ['Minha Empresa LTDA', '00.000.000/0000-00', '01/01/2026']]);
+  add('Empresa', [COL_EMPRESA, ['Empresa Demonstrativa', '11.222.333/0001-99', '01/01/2026']]);
 
   add('Contas', [COL_CONTAS,
     ['Nubank PJ', 'Conta Corrente', 10000, '01/01/2026'],
@@ -93,13 +93,15 @@ export function baixarModelo() {
 
   // Linhas de exemplo (já importáveis) — edite/substitua pelos seus dados.
   add('Vendas', [COL_VENDAS,
-    ['15/01/2026', '1001', 'Loja Física', 'Receita Bruta (Faturamento)', 'Produto A', 'Cliente X', '', 1500, '15/01/2026', '15/01/2026', 'Nubank PJ', ''],
-    ['20/01/2026', '1002', 'Online', 'Receita Bruta (Faturamento)', 'Produto B', 'Cliente Y', '', 900, '20/02/2026', '', 'Nubank PJ', 'a receber'],
+    ['15/01/2026', '1001', 'Loja Física', 'Receita Bruta (Faturamento)', 'Produto A', 'Cliente X', '', 1500, '15/01/2026', '15/01/2026', 'Nubank PJ', 'recebido à vista'],
+    ['20/02/2026', '1002', 'Online', 'Receita Bruta (Faturamento)', 'Produto B', 'Cliente Y', '', 2300, '20/03/2026', '', 'Nubank PJ', 'a receber'],
+    ['10/03/2026', '1003', 'Loja Física', 'Receita Bruta (Faturamento)', 'Produto C', 'Cliente Z', '1/3', 900, '10/03/2026', '10/03/2026', 'Caixa', 'parcela 1 de 3'],
   ]);
 
   add('Despesas', [COL_DESP,
-    ['10/01/2026', 'jan/2026', 'Aluguel da loja', 'Aluguel', 800, 'Imobiliária Y', 'Nubank PJ', 'PIX', '10/01/2026', ''],
-    ['05/01/2026', 'jan/2026', 'Folha de pagamento', 'Salários', 5000, 'Equipe', 'Nubank PJ', 'PIX', '05/01/2026', ''],
+    ['10/01/2026', 'jan/2026', 'Aluguel da loja', 'Aluguel', 800, 'Imobiliária Y', 'Nubank PJ', 'PIX', '10/01/2026', 'pago'],
+    ['05/02/2026', 'fev/2026', 'Folha de pagamento', 'Salários', 5000, 'Equipe', 'Nubank PJ', 'PIX', '05/02/2026', 'pago'],
+    ['15/03/2026', 'mar/2026', 'Impostos do mês', 'Impostos sobre vendas', 1200, 'Receita Federal', 'Nubank PJ', 'Boleto', '', 'em aberto'],
   ]);
 
   const maxL = Math.max(GRUPOS.length, FORMAS_PAGAMENTO.length, DEFAULT_RECEITA_CATEGORIES.length);
