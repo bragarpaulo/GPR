@@ -74,6 +74,10 @@ select, input[type="text"], input[type="number"], input[type="date"], input.mone
 }
 @media (min-width: 769px) { select, input[type="text"], input[type="number"], input[type="date"], input.money { font-size: 14px; } }
 input:focus, select:focus { outline: none; border-color: var(--primary); box-shadow: var(--glow); }
+/* Campos de data: clicar em qualquer parte abre o calendário (via showPicker no app.js); sem o ícone nativo do lado. */
+input[type="date"] { cursor: pointer; }
+input[type="date"]::-webkit-calendar-picker-indicator { display: none; -webkit-appearance: none; appearance: none; }
+input[type="date"]::-webkit-inner-spin-button { display: none; }
 .inp-flush { border: 1px solid transparent; background: transparent; width: 100%; padding: 7px 8px; border-radius: 7px; font-size: 14px; }
 .inp-flush:hover { border-color: var(--line); }
 .inp-flush:focus { background: #fff; }

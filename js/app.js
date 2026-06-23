@@ -98,6 +98,12 @@ empresaPickerEl.addEventListener('click', (e) => {
   if (item) { fecharEmpDd(); setActiveEmpresa(item.dataset.empId); return; }   // re-renderiza topbar
   if (e.target.closest('[data-emp-add]')) { fecharEmpDd(); addEmpresa(); location.hash = '#cadastro'; return; }
 });
+// Campos de data: clicar em qualquer parte do campo abre o calendário (o ícone nativo foi removido no CSS).
+// Digitar continua funcionando normalmente (desktop e celular).
+document.addEventListener('click', (e) => {
+  const inp = e.target.closest && e.target.closest('input[type="date"]');
+  if (inp && typeof inp.showPicker === 'function') { try { inp.showPicker(); } catch (_) {} }
+});
 // Fecha o dropdown ao clicar fora dele.
 document.addEventListener('click', (e) => { if (!e.target.closest('#emp-dd')) fecharEmpDd(); });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') fecharEmpDd(); });
