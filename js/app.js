@@ -167,20 +167,57 @@ function currentRoute() {
   const h = (location.hash || '').replace('#', '');
   return VIEWS[h] ? h : 'inicio';
 }
-// Barra de rolagem horizontal "fixa no rodapé da janela" p/ tabelas largas: cria uma barra sticky
-// (bottom:0) sincronizada com o scroll lateral de cada .table-wrap larga.
+// Barra de rolagem horizontal "fixa no rodapé da janela" p/ tabelas largas: scrollbar CUSTOMIZADO
+// (trilho .hbar + polegar .hthumb) — sempre visível (o overlay nativo do macOS some quando parado).
 function wireStickyHScroll(container) {
   container.querySelectorAll('.table-wrap:not(.tbl-frozen)').forEach(tw => {
     const tabela = tw.querySelector('table'); if (!tabela) return;
     const bar = document.createElement('div'); bar.className = 'hbar';
-    const spacer = document.createElement('div'); bar.appendChild(spacer);
+    const thumb = document.createElement('div'); thumb.className = 'hthumb';
+    bar.appendChild(thumb);
     tw.insertAdjacentElement('afterend', bar);
-    let lock = false;
-    const sync = () => { const precisa = tw.scrollWidth > tw.clientWidth + 1; bar.style.display = precisa ? '' : 'none'; spacer.style.width = tw.scrollWidth + 'px'; };
-    bar.addEventListener('scroll', () => { if (lock) return; lock = true; tw.scrollLeft = bar.scrollLeft; lock = false; });
-    tw.addEventListener('scroll', () => { if (lock) return; lock = true; bar.scrollLeft = tw.scrollLeft; lock = false; });
-    sync();
-    try { const ro = new ResizeObserver(sync); ro.observe(tabela); ro.observe(tw); } catch (e) {}
+
+    const refresh = () => {
+      const sw = tw.scrollWidth, cw = tw.clientWidth;
+      if (sw <= cw + 1) { bar.style.display = 'none'; return; }
+      bar.style.display = '';
+      const trackW = bar.clientWidth;
+      const tW = Math.max(40, Math.round(trackW * cw / sw));
+      const maxLeft = Math.max(0, trackW - tW);
+      const left = Math.round((tw.scrollLeft / (sw - cw)) * maxLeft);
+      thumb.style.width = tW + 'px';
+      thumb.style.transform = `translateX(${left}px)`;
+    };
+    tw.addEventListener('scroll', refresh, { passive: true });
+
+    // Arrastar o polegar.
+    let dragging = false, startX = 0, startScroll = 0;
+    thumb.addEventListener('pointerdown', (e) => {
+      dragging = true; startX = e.clientX; startScroll = tw.scrollLeft;
+      try { thumb.setPointerCapture(e.pointerId); } catch (_) {}
+      e.preventDefault(); e.stopPropagation();
+    });
+    thumb.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const sw = tw.scrollWidth, cw = tw.clientWidth, trackW = bar.clientWidth;
+      const maxLeft = Math.max(1, trackW - thumb.offsetWidth);
+      tw.scrollLeft = startScroll + (e.clientX - startX) * ((sw - cw) / maxLeft);
+    });
+    const end = (e) => { if (dragging) { dragging = false; try { thumb.releasePointerCapture(e.pointerId); } catch (_) {} } };
+    thumb.addEventListener('pointerup', end);
+    thumb.addEventListener('pointercancel', end);
+
+    // Clicar no trilho move a tabela para a posição clicada.
+    bar.addEventListener('pointerdown', (e) => {
+      if (e.target === thumb) return;
+      const sw = tw.scrollWidth, cw = tw.clientWidth, trackW = bar.clientWidth;
+      const maxLeft = Math.max(1, trackW - thumb.offsetWidth);
+      const pos = e.clientX - bar.getBoundingClientRect().left - thumb.offsetWidth / 2;
+      tw.scrollLeft = Math.max(0, pos) * ((sw - cw) / maxLeft);
+    });
+
+    refresh();
+    try { const ro = new ResizeObserver(refresh); ro.observe(tabela); ro.observe(tw); } catch (e) {}
   });
 }
 

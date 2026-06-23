@@ -138,9 +138,12 @@ input.money { text-align: right; font-variant-numeric: tabular-nums; }
 
 /* ---- Tabelas ---- */
 .table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--shadow); -webkit-overflow-scrolling: touch; }
-/* Barra de rolagem horizontal fixa no rodapé da janela (sincronizada com a tabela) — wireStickyHScroll. */
-.hbar { position: sticky; bottom: 0; z-index: 22; overflow-x: auto; overflow-y: hidden; height: 15px; margin-top: -1px; background: var(--surface); border: 1px solid var(--line); border-top-color: var(--line); border-radius: 0 0 var(--r-lg) var(--r-lg); }
-.hbar > div { height: 1px; }
+/* Barra de rolagem horizontal fixa no rodapé da janela — scrollbar CUSTOMIZADO (trilho + polegar reais),
+   sempre visível (o overlay nativo do macOS some quando parado). Controlado por wireStickyHScroll. */
+.hbar { position: sticky; bottom: 0; z-index: 22; height: 15px; margin-top: -1px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 0 0 var(--r-lg) var(--r-lg); overflow: hidden; touch-action: none; cursor: pointer; }
+.hthumb { position: absolute; top: 2px; left: 0; height: 9px; min-width: 40px; background: var(--muted-2); border-radius: 5px; cursor: grab; will-change: transform; }
+.hthumb:hover { background: var(--muted); }
+.hthumb:active { cursor: grabbing; background: var(--muted); }
 @media print { .hbar { display: none !important; } }
 /* Tabelas largas: 1ª coluna redimensionável (alça no canto da célula de cabeçalho). */
 .tbl-wide thead th:first-child { resize: horizontal; overflow: auto; min-width: 150px; max-width: 680px; }
