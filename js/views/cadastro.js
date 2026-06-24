@@ -141,7 +141,7 @@ export function render(container) {
 
     <details class="card card-pad cad-section cad-import">
       <summary>📥 Importar dados por planilha</summary>
-      <div class="hint" style="margin:6px 0 10px">Baixe o modelo, preencha as abas (Empresa, Contas, Canais e Metas, Categorias, Vendas e Despesas) e importe. Ao subir, é criada uma <strong>empresa nova</strong> com todos os dados. Clientes, produtos e recebedores são cadastrados automaticamente.</div>
+      <div class="hint" style="margin:6px 0 10px">Baixe o modelo e preencha as <strong>4 abas</strong>: Vendas, Despesas, Orçamento de Despesa e Canais e Metas. Ao importar, é criada uma <strong>empresa nova</strong> (o nome vem do nome do arquivo). Contas, categorias, clientes, produtos e recebedores são criados automaticamente a partir dos lançamentos.</div>
       <div class="card-head-actions">
         <button class="btn btn-sm" data-action="baixar-modelo">⬇ Baixar modelo</button>
         <button class="btn btn-primary btn-sm" data-action="importar">📥 Importar planilha preenchida</button>
