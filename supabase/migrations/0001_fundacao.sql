@@ -5,11 +5,14 @@
 
 create extension if not exists pgcrypto;
 
--- Helper: o usuário logado é admin? (security definer evita recursão de RLS)
+-- Helper: o usuário logado é admin? (plpgsql p/ não validar a tabela na criação — ordem não importa)
 create or replace function public.is_admin() returns boolean
-language sql stable security definer set search_path = public as $$
-  select coalesce((select p.is_admin from public.profiles p where p.id = auth.uid()), false);
-$$;
+language plpgsql stable security definer set search_path = public as $$
+declare a boolean;
+begin
+  select p.is_admin into a from public.profiles p where p.id = auth.uid();
+  return coalesce(a, false);
+end; $$;
 
 -- Trigger genérico de updated_at
 create or replace function public.tg_set_updated_at() returns trigger
