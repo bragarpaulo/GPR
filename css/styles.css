@@ -615,5 +615,24 @@ tr.row-neg > td:first-child { box-shadow: inset 3px 0 0 var(--red); }
 /* GPR Core (admin) */
 .cfg-field { display: flex; flex-direction: column; gap: 5px; font-size: 13px; font-weight: 600; color: var(--text); }
 .ig-sub { font-size: 11.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 4px 0 2px; }
+
+/* GPR Core — grade de cards + popup */
+.gc-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; margin-top: 16px; }
+.gc-card { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; cursor: pointer; transition: .15s; box-shadow: var(--shadow); font: inherit; }
+.gc-card:hover { border-color: var(--primary); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.gc-card-ico { font-size: 22px; }
+.gc-card-t { font-weight: 700; font-size: 14.5px; color: var(--text); }
+.gc-card-d { font-size: 12px; color: var(--muted); line-height: 1.35; }
+.gc-modal-overlay { position: fixed; inset: 0; z-index: 1200; background: rgba(15,23,42,.5); display: flex; align-items: center; justify-content: center; padding: 20px; animation: gpr-fade .15s ease both; }
+.gc-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lg); width: 100%; max-width: 780px; max-height: 86vh; display: flex; flex-direction: column; overflow: hidden; }
+.gc-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 15px 18px; border-bottom: 1px solid var(--line); }
+.gc-modal-head strong { font-size: 16px; }
+.gc-modal-x { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-size: 13px; color: var(--muted); flex: 0 0 auto; }
+.gc-modal-x:hover { border-color: var(--primary); color: var(--primary); }
+.gc-modal-body { padding: 16px 18px; overflow: auto; }
+.gc-search { width: 100%; margin-bottom: 10px; }
+.gc-pager { display: flex; align-items: center; justify-content: center; gap: 12px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+.gc-pager button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; width: 32px; height: 30px; cursor: pointer; font-size: 16px; color: var(--text); }
+.gc-pager button:disabled { opacity: .4; cursor: default; }
 .cfg-field select, .cfg-field input { font: inherit; }
 .nav-admin { margin-top: 4px; }
