@@ -115,7 +115,7 @@ empresaPickerEl.addEventListener('click', (e) => {
   if (tog) { e.stopPropagation(); _empDdOpen = true; toggleSelected(tog.dataset.empToggle); return; }   // mantém aberto p/ marcar várias
   const item = e.target.closest('[data-emp-id]');
   if (item) { fecharEmpDd(); setActiveEmpresa(item.dataset.empId); return; }   // clique no nome = só essa empresa
-  if (e.target.closest('[data-emp-add]')) { fecharEmpDd(); addEmpresa(); location.hash = '#cadastro'; return; }
+  if (e.target.closest('[data-emp-add]')) { fecharEmpDd(); const id = addEmpresa(); if (!id) { const pi = store.planInfo(); alert(`Limite de ${pi.limit} empresa(s) do seu plano atingido. Faça upgrade para adicionar mais.`); return; } location.hash = '#cadastro'; return; }
 });
 // Campos de data: clicar em qualquer parte do campo abre o calendário (o ícone nativo foi removido no CSS).
 // Digitar continua funcionando normalmente (desktop e celular).
@@ -265,6 +265,11 @@ function renderView() {
     b.className = 'agg-banner';
     b.innerHTML = `👁 <strong>Visão consolidada de ${getSelectedIds().length} empresas</strong> — somente leitura. Selecione 1 empresa no topo para editar.`;
     contentEl.replaceChildren(b, root);
+  } else if (store.isReadOnly()) {
+    const b = document.createElement('div');
+    b.className = 'agg-banner ro-banner';
+    b.innerHTML = `🔒 <strong>Assinatura inativa</strong> — seus dados estão preservados em modo somente leitura. Reative para voltar a editar.`;
+    contentEl.replaceChildren(b, root);
   } else {
     contentEl.replaceChildren(root);
   }
@@ -409,7 +414,8 @@ async function bootApp() {
   const t = await cloud.termsStatus();
   if (t.version && !t.accepted) { renderTermos(t); return; }
   _bootedUid = u.id; _appReady = true;
-  _isAdmin = await cloud.isAdminUser();        // mostra "GPR Core" no menu p/ admin
+  const acc = await cloud.getMyAccess();        // admin? só-leitura (assinatura)? limite de empresas?
+  _isAdmin = acc.admin; store.setAccess(acc);   // mostra "GPR Core" p/ admin; aplica trava/limite
   hideAuthGate();
   if (!location.hash) location.hash = '#inicio';
   buildNav();

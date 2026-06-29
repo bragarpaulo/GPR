@@ -9,6 +9,10 @@ import { PALETA } from './charts.js';   // paleta p/ cor por empresa (consolida�
 const LS_KEY = 'mapa_financeiro_mvp_v2';
 let _scope = '';                                  // sufixo por usuário (isola o cache local)
 function lsKey() { return _scope ? (LS_KEY + '_' + _scope) : LS_KEY; }
+let _readOnly = false, _planLimit = Infinity;   // assinatura cancelada → só-leitura; limite de empresas do plano
+export function setAccess(a = {}) { _readOnly = !!a.readOnly; _planLimit = (a.planLimit == null ? Infinity : a.planLimit); }
+export function isReadOnly() { return _readOnly; }
+export function planInfo() { return { limit: _planLimit, count: (root.companies || []).length }; }
 
 function freshCategorias() { return DEFAULT_CATEGORIES.map(c => ({ ...c })); }
 function freshReceitaCats() { return DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })); }
@@ -229,7 +233,7 @@ export function getState() { return isAggregated() ? mergedCompany() : active();
 // (período/ano/tema/filtros/ordenação) — que sempre miram a empresa PRIMÁRIA real.
 let _uiWrite = false;
 export function update(mutator, { silent = false } = {}) {
-  if (isAggregated() && !_uiWrite) return;
+  if ((isAggregated() || _readOnly) && !_uiWrite) return;   // consolidado OU assinatura inativa = só-leitura
   mutator(active()); save(); if (!silent) emit();
 }
 function updateUI(mutator, opts) { _uiWrite = true; try { update(mutator, opts); } finally { _uiWrite = false; } }
@@ -273,7 +277,11 @@ export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)
 // Define a seleção do cabeçalho para o ANO e MÊS vigentes (chamado no boot e ao trocar de empresa).
 function aplicarVigente(c) { if (!c || !c.ui) return; const y = anoCorrente(); c.ui.anosSel = [y]; c.ui.anoAtivo = y; c.ui.periodoMeses = [mesCorrente()]; }
 export function aplicarPeriodoVigente() { updateUI(s => aplicarVigente(s), { silent: true }); }
-export function addEmpresa() { const c = emptyCompany(active()?.ui.anoAtivo || anoCorrente(), 'Nova Empresa'); root.companies.push(c); root.activeId = c.id; root.selectedIds = [c.id]; save(); emit(); }
+export function addEmpresa() {
+  if ((root.companies || []).length >= _planLimit) return null;   // limite do plano (admin = Infinity)
+  const c = emptyCompany(active()?.ui.anoAtivo || anoCorrente(), 'Nova Empresa');
+  root.companies.push(c); root.activeId = c.id; root.selectedIds = [c.id]; save(); emit(); return c.id;
+}
 // Cria uma empresa vazia (com categorias padrão) e a torna ativa. Usado pela importação por planilha.
 export function addEmpresaVazia(nome, ano) { const c = emptyCompany(ano || anoCorrente(), nome || 'Empresa importada'); root.companies.push(c); root.activeId = c.id; root.selectedIds = [c.id]; save(); emit(); return c.id; }
 export function removerEmpresa(id) {

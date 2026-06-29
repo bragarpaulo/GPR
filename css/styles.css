@@ -391,6 +391,8 @@ tr.row-nova > td { animation: gpr-rowflash 1.6s ease; }
 
 /* Banner do modo consolidado (só-leitura) */
 .agg-banner { display: flex; align-items: center; gap: 8px; background: var(--blue-bg); color: var(--primary-d); border: 1px solid var(--primary); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 13.5px; }
+.agg-banner.ro-banner { background: var(--amber-bg); color: #92400e; border-color: var(--amber); }
+[data-theme="dark"] .agg-banner.ro-banner { background: var(--surface-2); color: #fcd34d; }
 [data-theme="dark"] .agg-banner { background: var(--surface-2); color: #cfe0ff; }
 .sidebar-tema { display: none; }
 

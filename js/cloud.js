@@ -80,6 +80,26 @@ export async function acceptTerms(version) {
 }
 export async function isAdminUser() { const p = await getProfile(); return !!(p && p.is_admin); }
 
+// Acesso do usuário: admin? só-leitura (assinatura cancelada)? limite de empresas do plano?
+export async function getMyAccess() {
+  const free = { admin: false, readOnly: false, planLimit: Infinity, status: 'active', plan: null };
+  try {
+    const c = client(); if (!c) return free;
+    const u = await currentUser(); if (!u) return free;
+    const prof = await getProfile();
+    if (prof && prof.is_admin) return { admin: true, readOnly: false, planLimit: Infinity, status: 'active', plan: null };
+    const { data: sub } = await c.from('subscriptions').select('plan_code,status').eq('owner_id', u.id).maybeSingle();
+    const status = (sub && sub.status) || 'active';
+    const ativo = ['active', 'trialing'].includes(status);
+    let planLimit = Infinity;
+    if (ativo && sub && sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies').eq('code', sub.plan_code).maybeSingle(); if (pl) planLimit = pl.max_companies; }
+    const { data: cfg } = await c.from('app_config').select('value').eq('key', 'geral').maybeSingle();
+    const cancelBehavior = (cfg && cfg.value && cfg.value.cancel_behavior) || 'read_only';
+    const readOnly = !ativo && ['canceled', 'past_due'].includes(status) && cancelBehavior === 'read_only';
+    return { admin: false, readOnly, planLimit, status, plan: sub && sub.plan_code };
+  } catch (e) { return free; }
+}
+
 // ---- GPR Core (admin) — RLS garante que só admin lê/escreve ------------------
 export async function adminMetrics() {
   try {
