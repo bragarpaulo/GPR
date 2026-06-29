@@ -14,11 +14,25 @@
 
 const URL = Deno.env.get('SUPABASE_URL') || '';
 const SR = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
-const GREEN_SECRET = Deno.env.get('GREEN_WEBHOOK_SECRET') || '';
-const RESEND_KEY = Deno.env.get('RESEND_API_KEY') || '';
-const FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'GPR <onboarding@resend.dev>';
-const APP_URL = Deno.env.get('APP_URL') || 'https://bragarpaulo.github.io/mapa-gestao-financeira/';
+// Config: lida do GPR Core (tabela integrations, só-admin) com fallback p/ env (Secrets).
+let GREEN_SECRET = Deno.env.get('GREEN_WEBHOOK_SECRET') || '';
+let RESEND_KEY = Deno.env.get('RESEND_API_KEY') || '';
+let FROM_EMAIL = Deno.env.get('FROM_EMAIL') || 'GPR <onboarding@resend.dev>';
+let APP_URL = Deno.env.get('APP_URL') || 'https://bragarpaulo.github.io/mapa-gestao-financeira/';
 const H = { 'apikey': SR, 'Authorization': `Bearer ${SR}`, 'Content-Type': 'application/json' };
+
+async function carregarConfig() {
+  try {
+    const r = await rest('integrations?select=key,value');
+    if (Array.isArray(r.data)) {
+      const m: any = {}; r.data.forEach((x: any) => { if (x.value) m[x.key] = x.value; });
+      GREEN_SECRET = m.green_webhook_secret || GREEN_SECRET;
+      RESEND_KEY = m.resend_api_key || RESEND_KEY;
+      FROM_EMAIL = m.from_email || FROM_EMAIL;
+      APP_URL = m.app_url || APP_URL;
+    }
+  } catch (e) { console.warn('[green] carregarConfig', e); }
+}
 
 async function rest(path: string, opts: any = {}) {
   const r = await fetch(`${URL}/rest/v1/${path}`, { ...opts, headers: { ...H, ...(opts.headers || {}) } });
@@ -80,6 +94,7 @@ async function enviarEmail(to: string, nome: string, senha: string, novo: boolea
 
 Deno.serve(async (req: Request) => {
   if (req.method !== 'POST') return new Response('ok', { status: 200 });
+  await carregarConfig();                 // chaves vêm do GPR Core (tabela integrations)
   const raw = await req.text();
   if (!(await assinaturaValida(req, raw))) return new Response('assinatura inválida', { status: 401 });
   let payload: any; try { payload = JSON.parse(raw); } catch { return new Response('json inválido', { status: 400 }); }

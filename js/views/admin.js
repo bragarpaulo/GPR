@@ -16,8 +16,36 @@ export function render(container) {
       <div class="card card-pad" id="gc-plans"><strong>Planos</strong></div>
       <div class="card card-pad" id="gc-templates"><strong>Templates de nicho</strong></div>
     </div>
+    <div class="card card-pad" id="gc-integr" style="margin-top:14px"><strong>Integrações</strong></div>
     <div class="card card-pad" id="gc-config" style="margin-top:14px"><strong>Configurações</strong></div>`;
-  loadMetrics(container); loadUsers(container); loadPlans(container); loadTemplates(container); loadConfig(container);
+  loadMetrics(container); loadUsers(container); loadPlans(container); loadTemplates(container); loadIntegracoes(container); loadConfig(container);
+}
+
+async function loadIntegracoes(c) {
+  const cfg = await cloud.adminGetIntegrations();
+  const url = 'https://qdioqeejcneijctotyft.supabase.co/functions/v1/green-webhook';
+  c.querySelector('#gc-integr').innerHTML = `<strong>Integrações (Green + Resend)</strong>
+    <p class="hint" style="margin:6px 0 12px">Plugue as chaves aqui — o webhook de cobrança usa direto. Guardadas só para o admin.</p>
+    <label class="cfg-field">URL do webhook (cadastre na Green)
+      <span style="display:flex;gap:6px"><input id="ig-url" value="${esc(url)}" readonly style="flex:1"><button class="btn btn-sm" id="ig-copy">Copiar</button></span></label>
+    <div class="grid grid-2" style="margin-top:10px">
+      <label class="cfg-field">Resend — API key <input id="ig-resend" type="password" value="${esc(cfg.resend_api_key || '')}" placeholder="re_..."></label>
+      <label class="cfg-field">Remetente (FROM_EMAIL) <input id="ig-from" value="${esc(cfg.from_email || '')}" placeholder="GPR <nao-responda@seudominio>"></label>
+      <label class="cfg-field">URL do app (APP_URL) <input id="ig-app" value="${esc(cfg.app_url || '')}" placeholder="https://bragarpaulo.github.io/mapa-gestao-financeira/"></label>
+      <label class="cfg-field">Green — segredo do webhook <input id="ig-green" type="password" value="${esc(cfg.green_webhook_secret || '')}" placeholder="segredo da Green"></label>
+    </div>
+    <button class="btn btn-sm btn-primary" id="ig-save" style="margin-top:12px">Salvar integrações</button>
+    <p class="hint" style="margin-top:10px">💡 A Resend também resolve o e-mail de <b>reset de senha</b> (configure o SMTP do Resend em Authentication). Ligue cada oferta da Green a um plano em <b>Planos</b> → campo "Oferta Green".</p>`;
+  c.querySelector('#ig-copy').onclick = () => { try { navigator.clipboard.writeText(url); } catch (e) {} const b = c.querySelector('#ig-copy'); b.textContent = 'Copiado ✓'; setTimeout(() => b.textContent = 'Copiar', 1300); };
+  c.querySelector('#ig-save').onclick = async () => {
+    const ok = await cloud.adminSetIntegrations({
+      resend_api_key: c.querySelector('#ig-resend').value.trim(),
+      from_email: c.querySelector('#ig-from').value.trim(),
+      app_url: c.querySelector('#ig-app').value.trim(),
+      green_webhook_secret: c.querySelector('#ig-green').value.trim(),
+    });
+    flash(c.querySelector('#ig-save'), ok);
+  };
 }
 
 async function loadMetrics(c) {
