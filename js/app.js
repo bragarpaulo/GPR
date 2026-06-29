@@ -5,6 +5,7 @@ import {
   getAnosDisponiveis, getAnosSel, toggleAno, setAnosSel, setPeriodoMeses,
   getTema, setTema,
   initCloud, setUserScope,
+  getSelectedIds, isAggregated, toggleSelected, empresaCor,
 } from './store.js';
 import * as cloud from './cloud.js';
 import { ABAS, MESES } from './config.js';
@@ -25,9 +26,8 @@ import * as orcamento from './views/orcamento.js';
 import * as planxreal from './views/planxreal.js';
 import * as metaxreal from './views/metaxreal.js';
 import * as metas from './views/metas.js';
-import * as conciliacao from './views/conciliacao.js';
 
-const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, conciliacao, orcamento, planxreal, metaxreal, metas };
+const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas };
 
 const navEl = document.getElementById('nav');
 const contentEl = document.getElementById('content');
@@ -56,20 +56,32 @@ function applyTema() {
 function toggleTema() { setTema(getTema() === 'dark' ? 'light' : 'dark'); applyTema(); }
 
 // ---- Topbar: logo (mobile) + seletor de empresa (dropdown próprio) + ⚙ + tema ----
+let _empDdOpen = false;   // mantém o dropdown aberto ao marcar várias empresas
 function renderTopbar() {
   const comps = getCompanies(), activeC = getActiveId();
-  const active = comps.find(c => c.id === activeC) || comps[0];
-  const itens = comps.map(c => `<button class="emp-item ${c.id === activeC ? 'active' : ''}" data-emp-id="${c.id}" role="option" aria-selected="${c.id === activeC}"><span class="emp-ico">${PREDIO_SVG}</span><span class="emp-item-nome">${esc(c.nome || '(sem nome)')}</span>${c.id === activeC ? '<span class="emp-check">✓</span>' : ''}</button>`).join('');
+  const sel = getSelectedIds(), agg = isAggregated();
+  const itens = comps.map(c => {
+    const isSel = sel.includes(c.id), isPrim = c.id === activeC;
+    return `<div class="emp-item ${isSel ? 'sel' : ''} ${isPrim ? 'primary' : ''}" role="option" aria-selected="${isSel}">
+      <button class="emp-pick" data-emp-id="${c.id}" title="Ver só esta empresa">
+        <span class="emp-dot" style="background:${empresaCor(c.id)}"></span>
+        <span class="emp-item-nome">${esc(c.nome || '(sem nome)')}</span>
+        ${isPrim ? '<span class="emp-tag">principal</span>' : ''}
+      </button>
+      <button class="emp-chk ${isSel ? 'on' : ''}" data-emp-toggle="${c.id}" title="Incluir/remover da consolidação" aria-pressed="${isSel}">${isSel ? '✓' : ''}</button>
+    </div>`;
+  }).join('');
+  const triggerLabel = agg ? `Consolidado (${sel.length})` : esc((comps.find(c => c.id === activeC) || comps[0] || {}).nome || 'Empresa');
   empresaPickerEl.innerHTML = `
     <button id="logo-home" class="logo-home" title="Ir para o Início" aria-label="Início">${LOGO_SVG}</button>
-    <div class="emp-dd" id="emp-dd">
-      <button class="emp-trigger" id="emp-trigger" aria-haspopup="listbox" aria-expanded="false">
-        <span class="emp-ico">${PREDIO_SVG}</span>
-        <span class="emp-nome">${esc(active ? (active.nome || '(sem nome)') : 'Empresa')}</span>
+    <div class="emp-dd ${_empDdOpen ? 'open' : ''}" id="emp-dd">
+      <button class="emp-trigger ${agg ? 'agg' : ''}" id="emp-trigger" aria-haspopup="listbox" aria-expanded="${_empDdOpen}">
+        ${agg ? `<span class="emp-ico">${PREDIO_SVG}</span>` : `<span class="emp-dot" style="background:${empresaCor(activeC)}"></span>`}
+        <span class="emp-nome">${triggerLabel}</span>
         <span class="emp-caret">▾</span>
       </button>
-      <div class="emp-panel" id="emp-panel" role="listbox" hidden>
-        <div class="emp-panel-head">Trocar empresa</div>
+      <div class="emp-panel" id="emp-panel" role="listbox" ${_empDdOpen ? '' : 'hidden'}>
+        <div class="emp-panel-head">Empresas <span class="emp-panel-hint">— marque 2+ p/ consolidar</span></div>
         <div class="emp-list">${itens}</div>
         <button class="emp-add" data-emp-add>＋ Adicionar empresa</button>
       </div>
@@ -79,6 +91,7 @@ function renderTopbar() {
 }
 
 function fecharEmpDd() {
+  _empDdOpen = false;
   const dd = empresaPickerEl.querySelector('#emp-dd'); if (!dd) return;
   dd.classList.remove('open');
   const t = dd.querySelector('#emp-trigger'); if (t) t.setAttribute('aria-expanded', 'false');
@@ -89,15 +102,17 @@ empresaPickerEl.addEventListener('click', (e) => {
   if (e.target.closest('#empresa-cfg')) { location.hash = '#cadastro'; return; }
   const trigger = e.target.closest('#emp-trigger');
   if (trigger) {
+    _empDdOpen = !_empDdOpen;
     const dd = empresaPickerEl.querySelector('#emp-dd');
-    const abrir = !dd.classList.contains('open');
-    dd.classList.toggle('open', abrir);
-    trigger.setAttribute('aria-expanded', String(abrir));
-    dd.querySelector('#emp-panel').hidden = !abrir;
+    dd.classList.toggle('open', _empDdOpen);
+    trigger.setAttribute('aria-expanded', String(_empDdOpen));
+    dd.querySelector('#emp-panel').hidden = !_empDdOpen;
     return;
   }
+  const tog = e.target.closest('[data-emp-toggle]');
+  if (tog) { e.stopPropagation(); _empDdOpen = true; toggleSelected(tog.dataset.empToggle); return; }   // mantém aberto p/ marcar várias
   const item = e.target.closest('[data-emp-id]');
-  if (item) { fecharEmpDd(); setActiveEmpresa(item.dataset.empId); return; }   // re-renderiza topbar
+  if (item) { fecharEmpDd(); setActiveEmpresa(item.dataset.empId); return; }   // clique no nome = só essa empresa
   if (e.target.closest('[data-emp-add]')) { fecharEmpDd(); addEmpresa(); location.hash = '#cadastro'; return; }
 });
 // Campos de data: clicar em qualquer parte do campo abre o calendário (o ícone nativo foi removido no CSS).
@@ -241,7 +256,14 @@ function renderView() {
   const sc = scEl.scrollTop;
   const fsc = contentEl.querySelector('.tbl-frozen')?.scrollTop ?? 0;
   const root = document.createElement('div');
-  contentEl.replaceChildren(root);
+  if (isAggregated()) {
+    const b = document.createElement('div');
+    b.className = 'agg-banner';
+    b.innerHTML = `👁 <strong>Visão consolidada de ${getSelectedIds().length} empresas</strong> — somente leitura. Selecione 1 empresa no topo para editar.`;
+    contentEl.replaceChildren(b, root);
+  } else {
+    contentEl.replaceChildren(root);
+  }
   try { VIEWS[route].render(root); }
   catch (err) { root.innerHTML = `<div class="callout warn"><strong>Erro ao renderizar.</strong><br>${esc(err.message)}</div>`; console.error(err); }
   navEl.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.route === route));

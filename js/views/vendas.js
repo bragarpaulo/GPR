@@ -1,6 +1,6 @@
 // views/vendas.js — Lançamento de Vendas. Edição NÃO reordena/re-renderiza (linha fica fixa);
 // status/derivados atualizam só na própria linha; adicionar anexa no fim; recorrência inline.
-import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, ensureProduto, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta } from '../store.js';
+import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, removerVendaAFrente, setVendaCampo, setVendasFiltro, setVendasSort, ensureCliente, ensureProduto, aplicarRecorrenciaVenda, nomeCanal, nomeReceitaCat, nomeConta, isAggregated } from '../store.js';
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
 import { pageHead, options, badgeVenda, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
@@ -62,8 +62,52 @@ function atualizarDerivada(container, id) {
   put('status', badgeVenda(v.status));
 }
 
+// Linha só-leitura (consolidado): cada linha leva a COR da empresa (barra à esquerda + ponto + nome).
+function rowHtmlRO(v) {
+  const cor = v._empCor || '#94a3b8';
+  return `<tr class="${ROWCLS[v.status] || ''}" style="box-shadow: inset 4px 0 0 ${cor}">
+    <td class="emp-cell nowrap"><span class="emp-dot" style="background:${cor}"></span>${esc(v._empNome || '')}</td>
+    <td class="nowrap">${esc(fmtData(v.dataVenda))}</td>
+    <td>${esc(v.cliente || '')}</td>
+    <td>${esc(v.produto || '')}</td>
+    <td class="num">${fmtBRL0(num(v.valor))}</td>
+    <td class="nowrap">${esc(fmtData(v.dataVencimento))}</td>
+    <td class="nowrap">${esc(fmtData(v.dataRecebimento))}</td>
+    <td>${badgeVenda(v.status)}</td>
+  </tr>`;
+}
+// Visão CONSOLIDADA (2+ empresas): tabela só-leitura, colorida por empresa. Busca + chips de status filtram.
+function renderConsolidado(container, s) {
+  const filtro = s.ui.vendasFiltro || { status: [], busca: '' };
+  const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
+  let linhas = s.vendas.map(vendaDerivada).filter(v => !v.dataVenda || noPeriodo(v.dataVenda, anos, meses));
+  if (filtro.status && filtro.status.length) linhas = linhas.filter(v => filtro.status.includes(v.status));
+  if (filtro.busca) { const q = norm(filtro.busca); linhas = linhas.filter(v => norm([v._empNome, v.cliente, v.produto, v.pedido, v.valor, fmtBRL(v.valor), v.dataVenda, fmtData(v.dataVenda), v.status].join(' ')).includes(q)); }
+  const total = linhas.reduce((a, v) => a + num(v.valor), 0);
+  const rows = linhas.map(rowHtmlRO).join('') || `<tr class="row-vazia"><td colspan="8" class="empty">Nenhuma venda no período.</td></tr>`;
+  container.innerHTML = `
+    ${pageHead('Lançamento de Vendas', 'Visão consolidada — somente leitura. Cada linha tem a cor da empresa; selecione 1 empresa no topo para editar.')}
+    ${statusFilterChips(LEGENDA, filtro.status || [])}
+    <div class="toolbar">
+      <input id="f-busca" class="search-grow" type="text" placeholder="🔎 Buscar…" value="${esc(filtro.busca)}">
+      <div class="spacer"></div>
+      <span class="hint lc-hint">${linhas.length} linha(s) · Total ${fmtBRL0(total)}</span>
+    </div>
+    <div class="table-wrap tbl-frozen"><table>
+      <thead><tr><th>Empresa</th><th>Data da Venda</th><th>Cliente</th><th>Produto/Pedido</th><th class="num">Valor</th><th>Vencimento</th><th>Recebimento</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const busca = container.querySelector('#f-busca');
+  if (busca) busca.addEventListener('input', () => setVendasFiltro({ busca: busca.value }));
+  container.querySelectorAll('[data-statusfilter]').forEach(ch => ch.addEventListener('click', () => {
+    const st = ch.dataset.statusfilter, cur = (getState().ui.vendasFiltro?.status) || [];
+    setVendasFiltro({ status: cur.includes(st) ? cur.filter(x => x !== st) : [...cur, st] });
+  }));
+}
+
 export function render(container) {
   const s = getState();
+  if (isAggregated()) return renderConsolidado(container, s);   // 2+ empresas: visão consolidada só-leitura
   const filtro = s.ui.vendasFiltro || { status: [], busca: '', canal: '' };
   const sort = s.ui.vendasSort || { campo: '', dir: 'asc' };
   const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];

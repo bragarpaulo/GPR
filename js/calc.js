@@ -342,3 +342,21 @@ export function calcSeriesMultiAno(s, anos) {
     };
   });
 }
+
+// Séries mensais por EMPRESA (consolidação): uma série por empresa no ANO dado.
+// `companies` = objetos completos das empresas selecionadas. Espelha calcSeriesMultiAno.
+export function calcSeriesPorEmpresa(companies, ano) {
+  return (companies || []).map(c => {
+    const sa = { ...c, ui: { ...(c.ui || {}), anosSel: [ano], anoAtivo: ano } };
+    const dre = calcDRE(sa), fluxo = calcFluxo(sa);
+    return {
+      empId: c.id, nome: (c.empresa && c.empresa.nome) || 'Empresa',
+      receita: dre.entradas,
+      despesa: dre.totalDespesas.map(v => Math.abs(v)),
+      lucro: dre.lucroLiquido,
+      recebimentos: fluxo.entradas,
+      pagamentos: fluxo.saidas,
+      geracao: fluxo.resultado,
+    };
+  });
+}

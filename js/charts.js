@@ -285,3 +285,20 @@ export function barras(id, labels, valores, onClick, horizontal = false, mostrar
     plugins: mostrar ? [barValueLabels] : [],
   }, onClick);
 }
+
+// Multi-série por EMPRESA (consolidação): uma cor por empresa. series = [{label, data, cor}].
+// Legenda visível (nomes das empresas + cor); tooltip por índice mostra todas no mês.
+export function barrasMulti(id, labels, series) {
+  return make(id, {
+    type: 'bar',
+    data: { labels, datasets: (series || []).map(s => ({ label: s.label, data: s.data, backgroundColor: s.cor, borderColor: s.cor, borderRadius: 4, maxBarThickness: 24 })) },
+    options: { ...gridOpts('y'), interaction: { mode: 'index', intersect: false } },
+  });
+}
+export function linhasMulti(id, labels, series) {
+  return make(id, {
+    type: 'line',
+    data: { labels, datasets: (series || []).map(s => ({ label: s.label, data: s.data, borderColor: s.cor, backgroundColor: s.cor, fill: false, tension: .3, borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: s.cor })) },
+    options: { ...gridOpts('y'), interaction: { mode: 'index', intersect: false } },
+  });
+}

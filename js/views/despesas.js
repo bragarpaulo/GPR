@@ -1,6 +1,6 @@
 // views/despesas.js — Lançamento de Despesas. Edição NÃO reordena/re-renderiza (linha fica fixa);
 // status atualiza só na própria linha (ex.: ao preencher "Pago em" vira Pago); adicionar anexa no fim.
-import { getState, addDespesa, duplicarDespesa, removerDespesa, removerDespesas, removerDespesaAFrente, setDespesaCampo, setDespesasFiltro, setDespesasSort, ensureFornecedor, aplicarRecorrenciaDespesa, nomeCategoria, nomeConta } from '../store.js';
+import { getState, addDespesa, duplicarDespesa, removerDespesa, removerDespesas, removerDespesaAFrente, setDespesaCampo, setDespesasFiltro, setDespesasSort, ensureFornecedor, aplicarRecorrenciaDespesa, nomeCategoria, nomeConta, isAggregated } from '../store.js';
 import { despesaDerivada } from '../calc.js';
 import { STATUS_DESPESA, FORMAS_PAGAMENTO, MESES } from '../config.js';
 import { pageHead, options, badgeDespesa, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover } from '../ui.js';
@@ -73,8 +73,52 @@ function atualizarDerivada(container, id) {
   const st = tr.querySelector('[data-cell="status"]'); if (st) st.innerHTML = badgeDespesa(d.status);
 }
 
+// Linha só-leitura (consolidado): cada linha leva a COR da empresa.
+function rowHtmlRO(d) {
+  const cor = d._empCor || '#94a3b8';
+  return `<tr class="${ROWCLS[d.status] || ''}" style="box-shadow: inset 4px 0 0 ${cor}">
+    <td class="emp-cell nowrap"><span class="emp-dot" style="background:${cor}"></span>${esc(d._empNome || '')}</td>
+    <td class="nowrap">${esc(fmtData(d.dataVencimento))}</td>
+    <td>${esc(d.descricao || '')}</td>
+    <td>${esc(nomeCategoria(d.categoriaId))}</td>
+    <td class="num">${fmtBRL0(num(d.valor))}</td>
+    <td>${esc(d.fornecedor || '')}</td>
+    <td class="nowrap">${esc(fmtData(d.dataPagamentoReal))}</td>
+    <td>${badgeDespesa(d.status)}</td>
+  </tr>`;
+}
+// Visão CONSOLIDADA (2+ empresas): tabela só-leitura, colorida por empresa.
+function renderConsolidado(container, s) {
+  const filtro = s.ui.despesasFiltro || { status: [], busca: '' };
+  const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
+  let linhas = s.despesas.map(despesaDerivada).filter(d => (!d.mesCompetencia && !d.dataVencimento) ? true : noPeriodoComp(d.mesCompetencia, anos, meses) || (d.dataVencimento && noPeriodoData(d.dataVencimento, anos, meses)));
+  if (filtro.status && filtro.status.length) linhas = linhas.filter(d => filtro.status.includes(d.status));
+  if (filtro.busca) { const q = norm(filtro.busca); linhas = linhas.filter(d => norm([d._empNome, d.descricao, d.fornecedor, nomeCategoria(d.categoriaId), d.valor, fmtBRL(d.valor), d.dataVencimento, fmtData(d.dataVencimento), d.status].join(' ')).includes(q)); }
+  const total = linhas.reduce((a, d) => a + num(d.valor), 0);
+  const rows = linhas.map(rowHtmlRO).join('') || `<tr class="row-vazia"><td colspan="8" class="empty">Nenhuma despesa no período.</td></tr>`;
+  container.innerHTML = `
+    ${pageHead('Lançamento de Despesas', 'Visão consolidada — somente leitura. Cada linha tem a cor da empresa; selecione 1 empresa no topo para editar.')}
+    ${statusFilterChips(LEGENDA, filtro.status || [])}
+    <div class="toolbar">
+      <input id="f-busca" class="search-grow" type="text" placeholder="🔎 Buscar…" value="${esc(filtro.busca)}">
+      <div class="spacer"></div>
+      <span class="hint lc-hint">${linhas.length} linha(s) · Total ${fmtBRL0(total)}</span>
+    </div>
+    <div class="table-wrap tbl-frozen"><table>
+      <thead><tr><th>Empresa</th><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th class="num">Valor</th><th>Recebedor</th><th>Pago em</th><th>Status</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const busca = container.querySelector('#f-busca');
+  if (busca) busca.addEventListener('input', () => setDespesasFiltro({ busca: busca.value }));
+  container.querySelectorAll('[data-statusfilter]').forEach(ch => ch.addEventListener('click', () => {
+    const st = ch.dataset.statusfilter, cur = (getState().ui.despesasFiltro?.status) || [];
+    setDespesasFiltro({ status: cur.includes(st) ? cur.filter(x => x !== st) : [...cur, st] });
+  }));
+}
+
 export function render(container) {
   const s = getState();
+  if (isAggregated()) return renderConsolidado(container, s);   // 2+ empresas: visão consolidada só-leitura
   const filtro = s.ui.despesasFiltro || { status: [], busca: '', categoria: '' };
   const sort = s.ui.despesasSort || { campo: '', dir: 'asc' };
   const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];

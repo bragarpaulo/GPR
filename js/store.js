@@ -4,6 +4,7 @@ import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, GRUPOS } from './config
 import { demoData } from './seed.js';
 import { uid, anosDisponiveis as anosDisponiveisUtil, addMeses, parseISO, mesAno } from './util.js';
 import { cloudEnabled, cloudLoad, cloudSave, cloudSubscribe } from './cloud.js';
+import { PALETA } from './charts.js';   // paleta p/ cor por empresa (consolidação)
 
 const LS_KEY = 'mapa_financeiro_mvp_v2';
 let _scope = '';                                  // sufixo por usuário (isola o cache local)
@@ -127,6 +128,8 @@ function load() {
     if (!r.companies || !r.companies.length) return null;
     r.companies.forEach(migrarCompany);
     if (!r.companies.find(c => c.id === r.activeId)) r.activeId = r.companies[0].id;
+    r.selectedIds = (Array.isArray(r.selectedIds) ? r.selectedIds : []).filter(id => r.companies.some(c => c.id === id));
+    if (!r.selectedIds.length) r.selectedIds = [r.activeId];
     return r;
   } catch (e) { return null; }
 }
@@ -138,16 +141,98 @@ export function flushLocal() {
   clearTimeout(_localTimer); _localTimer = null;
   try { localStorage.setItem(lsKey(), JSON.stringify(root)); } catch (e) {}
 }
-export function save() { _lastLocalSave = Date.now(); scheduleLocal(); scheduleCloud(); }
+export function save() { _rev++; _lastLocalSave = Date.now(); scheduleLocal(); scheduleCloud(); }
 if (typeof window !== 'undefined') window.addEventListener('beforeunload', flushLocal);
 function emit() { listeners.forEach(fn => fn(getState())); }
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
 function active() { return root.companies.find(c => c.id === root.activeId) || root.companies[0]; }
-export function getState() { return active(); }
-// `silent: true` → salva (LS + nuvem) mas NÃO re-renderiza a UI (evita perder foco em
-// inputs sendo digitados; ver fix raiz dos bugs 1/2/9 da Fase 7).
-export function update(mutator, { silent = false } = {}) { mutator(active()); save(); if (!silent) emit(); }
+
+// ---- Seleção MÚLTIPLA de empresas (consolidação) -------------------------
+// root.selectedIds = empresas selecionadas (a primária = activeId). 1 = normal/editável; 2+ = consolidado
+// SÓ-LEITURA, com cor por empresa. getState() devolve uma "empresa consolidada" virtual quando 2+.
+let _rev = 0;                            // revisão global p/ invalidar o merge memoizado (incrementa em save())
+let _mergeCache = null, _mergeSig = '';
+export function getSelectedIds() {
+  const ids = (Array.isArray(root.selectedIds) && root.selectedIds.length) ? root.selectedIds : [root.activeId];
+  const valid = ids.filter(id => root.companies.some(c => c.id === id));
+  return valid.length ? valid : [active().id];
+}
+export function isAggregated() { return getSelectedIds().length > 1; }
+export function empresaCor(id) {
+  const i = root.companies.findIndex(c => c.id === id);
+  return PALETA[(i < 0 ? 0 : i) % PALETA.length];
+}
+export function toggleSelected(id) {
+  if (!root.companies.some(c => c.id === id)) return;
+  let ids = getSelectedIds().slice();
+  if (ids.includes(id)) {
+    if (ids.length === 1) return;                       // não desmarca a última
+    ids = ids.filter(x => x !== id);
+    if (id === root.activeId) root.activeId = ids[0];   // primária saiu → nova primária
+  } else ids.push(id);
+  root.selectedIds = ids; save(); emit();
+}
+
+const _rebind = (val, empId) => (val ? `${val}__${empId}` : val);
+function mergeOrcamentos(comps) {
+  const out = {};
+  comps.forEach(c => { const orc = c.orcamento || {}; Object.keys(orc).forEach(ano => {
+    out[ano] = out[ano] || {}; const byCat = orc[ano] || {};
+    Object.keys(byCat).forEach(cat => { const arr = byCat[cat] || []; if (!out[ano][cat]) out[ano][cat] = Array(12).fill(0); for (let i = 0; i < 12; i++) out[ano][cat][i] += Number(arr[i]) || 0; });
+  }); });
+  return out;
+}
+// Empresa virtual = soma das selecionadas. Cada item ganha _empId/_empNome/_empCor (cor por empresa).
+// canais/contas/plataformas têm id reescrito por empresa; canalId/contaId dos lançamentos seguem o mesmo
+// reescrito (consistência). categorias são compartilhadas (DEFAULT) → DRE/DFC somam por categoria.
+function mergeCompanies(ids) {
+  const comps = ids.map(id => root.companies.find(c => c.id === id)).filter(Boolean);
+  const primary = comps.find(c => c.id === root.activeId) || comps[0];
+  const tg = (c) => ({ _empId: c.id, _empNome: c.empresa.nome || '(sem nome)', _empCor: empresaCor(c.id) });
+  return {
+    id: '__consolidado__', _consolidado: true,
+    empresa: {
+      nome: `Consolidado (${comps.length} empresas)`, cnpj: '',
+      anos: [...new Set(comps.flatMap(c => c.empresa.anos || []).map(Number))].sort((a, b) => a - b),
+      dataInicio: comps.map(c => c.empresa.dataInicio).filter(Boolean).sort()[0] || '',
+    },
+    vendas: comps.flatMap(c => (c.vendas || []).map(v => ({ ...v, canalId: _rebind(v.canalId, c.id), contaId: _rebind(v.contaId, c.id), ...tg(c) }))),
+    despesas: comps.flatMap(c => (c.despesas || []).map(d => ({ ...d, contaId: _rebind(d.contaId, c.id), ...tg(c) }))),
+    contas: comps.flatMap(c => (c.contas || []).map(x => ({ ...x, id: _rebind(x.id, c.id), ...tg(c) }))),
+    canais: comps.flatMap(c => (c.canais || []).map(ch => ({ ...ch, id: _rebind(ch.id, c.id), ...tg(c) }))),
+    clientes: comps.flatMap(c => (c.clientes || []).map(x => ({ ...x, ...tg(c) }))),
+    produtos: comps.flatMap(c => (c.produtos || []).map(x => ({ ...x, ...tg(c) }))),
+    fornecedores: comps.flatMap(c => (c.fornecedores || []).map(x => ({ ...x, ...tg(c) }))),
+    categorias: (primary.categorias || freshCategorias()).map(x => ({ ...x })),
+    receitaCategorias: (primary.receitaCategorias || freshReceitaCats()).map(x => ({ ...x })),
+    orcamento: mergeOrcamentos(comps),
+    plataformas: {
+      disponiveis: comps.flatMap(c => (c.plataformas?.disponiveis || []).map(x => ({ ...x, id: _rebind(x.id, c.id), ...tg(c) }))),
+      aReceber: comps.flatMap(c => (c.plataformas?.aReceber || []).map(x => ({ ...x, id: _rebind(x.id, c.id), ...tg(c) }))),
+    },
+    ui: JSON.parse(JSON.stringify(primary.ui)),
+  };
+}
+function mergedCompany() {
+  const ids = getSelectedIds();
+  const sig = ids.join(',') + '|' + _rev;
+  if (_mergeCache && _mergeSig === sig) return _mergeCache;
+  _mergeCache = mergeCompanies(ids); _mergeSig = sig;
+  return _mergeCache;
+}
+
+export function getState() { return isAggregated() ? mergedCompany() : active(); }
+
+// `silent: true` → salva (LS + nuvem) mas NÃO re-renderiza a UI (evita perder foco em inputs; fix bugs 1/2/9).
+// CONSOLIDADO (2+ empresas) = dados SÓ-LEITURA: update() vira no-op, exceto mutações de UI via updateUI
+// (período/ano/tema/filtros/ordenação) — que sempre miram a empresa PRIMÁRIA real.
+let _uiWrite = false;
+export function update(mutator, { silent = false } = {}) {
+  if (isAggregated() && !_uiWrite) return;
+  mutator(active()); save(); if (!silent) emit();
+}
+function updateUI(mutator, opts) { _uiWrite = true; try { update(mutator, opts); } finally { _uiWrite = false; } }
 
 // ---- Nuvem ---------------------------------------------------------------
 let _cloudTimer = null, _lastLocalSave = 0;
@@ -162,6 +247,8 @@ function aplicarRemoto(remote) {
   if (!remote || !Array.isArray(remote.companies) || !remote.companies.length) return;
   remote.companies.forEach(migrarCompany);
   if (!remote.companies.find(c => c.id === remote.activeId)) remote.activeId = remote.companies[0].id;
+  remote.selectedIds = (Array.isArray(remote.selectedIds) ? remote.selectedIds : []).filter(id => remote.companies.some(c => c.id === id));
+  if (!remote.selectedIds.length) remote.selectedIds = [remote.activeId];
   root = remote;
   try { localStorage.setItem(lsKey(), JSON.stringify(root)); } catch (e) {}
   emit();
@@ -182,13 +269,13 @@ export { cloudEnabled };
 export function getCompanies() { return root.companies.map(c => ({ id: c.id, nome: c.empresa.nome, cnpj: c.empresa.cnpj })); }
 export function getCompaniesFull() { return root.companies; }   // objetos completos (p/ Conciliação consolidar)
 export function getActiveId() { return root.activeId; }
-export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)) { root.activeId = id; aplicarVigente(active()); save(); emit(); } }
+export function setActiveEmpresa(id) { if (root.companies.find(c => c.id === id)) { root.activeId = id; root.selectedIds = [id]; aplicarVigente(active()); save(); emit(); } }
 // Define a seleção do cabeçalho para o ANO e MÊS vigentes (chamado no boot e ao trocar de empresa).
 function aplicarVigente(c) { if (!c || !c.ui) return; const y = anoCorrente(); c.ui.anosSel = [y]; c.ui.anoAtivo = y; c.ui.periodoMeses = [mesCorrente()]; }
-export function aplicarPeriodoVigente() { update(s => aplicarVigente(s), { silent: true }); }
-export function addEmpresa() { const c = emptyCompany(active()?.ui.anoAtivo || anoCorrente(), 'Nova Empresa'); root.companies.push(c); root.activeId = c.id; save(); emit(); }
+export function aplicarPeriodoVigente() { updateUI(s => aplicarVigente(s), { silent: true }); }
+export function addEmpresa() { const c = emptyCompany(active()?.ui.anoAtivo || anoCorrente(), 'Nova Empresa'); root.companies.push(c); root.activeId = c.id; root.selectedIds = [c.id]; save(); emit(); }
 // Cria uma empresa vazia (com categorias padrão) e a torna ativa. Usado pela importação por planilha.
-export function addEmpresaVazia(nome, ano) { const c = emptyCompany(ano || anoCorrente(), nome || 'Empresa importada'); root.companies.push(c); root.activeId = c.id; save(); emit(); return c.id; }
+export function addEmpresaVazia(nome, ano) { const c = emptyCompany(ano || anoCorrente(), nome || 'Empresa importada'); root.companies.push(c); root.activeId = c.id; root.selectedIds = [c.id]; save(); emit(); return c.id; }
 export function removerEmpresa(id) {
   root.companies = root.companies.filter(c => c.id !== id);
   if (!root.companies.length) root.companies.push(emptyCompany());
@@ -251,6 +338,7 @@ export function restaurarBackup(obj) {
   r.companies.forEach(migrarCompany);
   if (!r.companies.find(c => c.id === r.activeId)) r.activeId = r.companies[0].id;
   root = r;
+  root.selectedIds = [root.activeId];
   aplicarVigente(active());
   flushLocal(); flushCloud(); emit();
 }
@@ -258,15 +346,15 @@ export function restaurarBackup(obj) {
 // ---- Anos (multi-ano) ----------------------------------------------------
 export function getAnos() { return [...active().empresa.anos].sort((a, b) => a - b); }
 // Anos disponíveis = cadastrados ∪ com dados ∪ ano corrente (gerados automaticamente).
-export function getAnosDisponiveis() { return anosDisponiveisUtil(active()); }
+export function getAnosDisponiveis() { return anosDisponiveisUtil(getState()); }   // consolidado: união dos anos
 export function getAnoAtivo() { const ui = active().ui; return (Array.isArray(ui.anosSel) && ui.anosSel.length) ? Math.max(...ui.anosSel.map(Number)) : Number(ui.anoAtivo); }
 export function getAnosSel() { const ui = active().ui; return (Array.isArray(ui.anosSel) && ui.anosSel.length) ? [...ui.anosSel].map(Number).sort((a, b) => a - b) : [getAnoAtivo()]; }
 function _normAnos(arr, fallback) { const a = [...new Set(Array.from(arr).map(Number))].filter(Boolean).sort((x, y) => x - y); return a.length ? a : [fallback]; }
-export function setAnosSel(arr, opts) { update(s => { s.ui.anosSel = _normAnos(arr, anoCorrente()); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }, opts); }
-export function toggleAno(ano) { ano = Number(ano); update(s => { const set = new Set((s.ui.anosSel || []).map(Number)); set.has(ano) ? set.delete(ano) : set.add(ano); s.ui.anosSel = _normAnos([...set], ano); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }); }
-export function setAnoAtivo(ano) { update(s => { s.ui.anoAtivo = Number(ano); s.ui.anosSel = [Number(ano)]; }); }
+export function setAnosSel(arr, opts) { updateUI(s => { s.ui.anosSel = _normAnos(arr, anoCorrente()); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }, opts); }
+export function toggleAno(ano) { ano = Number(ano); updateUI(s => { const set = new Set((s.ui.anosSel || []).map(Number)); set.has(ano) ? set.delete(ano) : set.add(ano); s.ui.anosSel = _normAnos([...set], ano); s.ui.anoAtivo = Math.max(...s.ui.anosSel); }); }
+export function setAnoAtivo(ano) { updateUI(s => { s.ui.anoAtivo = Number(ano); s.ui.anosSel = [Number(ano)]; }); }
 export function getTema() { return active().ui.tema || 'light'; }
-export function setTema(t) { update(s => { s.ui.tema = t === 'dark' ? 'dark' : 'light'; }); }
+export function setTema(t) { updateUI(s => { s.ui.tema = t === 'dark' ? 'dark' : 'light'; }); }
 export function addAno(ano, copiarDe = null) {
   update(s => {
     ano = Number(ano);
@@ -455,17 +543,17 @@ export function reordenarContas(fromId, toId) { update(s => moveById(s.contas, f
 // ---- Empresa / Orçamento / Plataformas / UI ------------------------------
 export function setEmpresaCampo(campo, valor) { update(s => { s.empresa[campo] = valor; }); }
 export function setOrcamento(ano, catId, mesIdx, valor) { update(s => { if (!s.orcamento[ano]) s.orcamento[ano] = {}; if (!Array.isArray(s.orcamento[ano][catId])) s.orcamento[ano][catId] = Array(12).fill(0); s.orcamento[ano][catId][mesIdx] = valor; }); }
-export function setPeriodoMeses(arr) { update(s => { s.ui.periodoMeses = Array.from(arr).map(Number); }); }
-export function setUiCampo(campo, valor) { update(s => { s.ui[campo] = valor; }); }
+export function setPeriodoMeses(arr) { updateUI(s => { s.ui.periodoMeses = Array.from(arr).map(Number); }); }
+export function setUiCampo(campo, valor) { updateUI(s => { s.ui[campo] = valor; }); }
 // Mostrar/ocultar rótulos de valor (barras) ou % (pizza) por gráfico (id do canvas).
 export function chartLabelOn(id) { return !(getState().ui.chartHide || {})[id]; }
-export function toggleChartLabel(id) { update(s => { const h = { ...(s.ui.chartHide || {}) }; if (h[id]) delete h[id]; else h[id] = true; s.ui.chartHide = h; }); }
+export function toggleChartLabel(id) { updateUI(s => { const h = { ...(s.ui.chartHide || {}) }; if (h[id]) delete h[id]; else h[id] = true; s.ui.chartHide = h; }); }
 function toggleSort(cur, campo) { return (cur && cur.campo === campo) ? { campo, dir: cur.dir === 'asc' ? 'desc' : 'asc' } : { campo, dir: 'asc' }; }
-export function setVendasSort(campo) { update(s => { s.ui.vendasSort = toggleSort(s.ui.vendasSort, campo); }); }
-export function setDespesasSort(campo) { update(s => { s.ui.despesasSort = toggleSort(s.ui.despesasSort, campo); }); }
-export function setVendasFiltro(patch) { update(s => { s.ui.vendasFiltro = { ...s.ui.vendasFiltro, ...patch }; }); }
-export function setDespesasFiltro(patch) { update(s => { s.ui.despesasFiltro = { ...s.ui.despesasFiltro, ...patch }; }); }
-export function setFluxoMesReceber(i) { update(s => { s.ui.fluxoMesReceber = i; }); }
+export function setVendasSort(campo) { updateUI(s => { s.ui.vendasSort = toggleSort(s.ui.vendasSort, campo); }); }
+export function setDespesasSort(campo) { updateUI(s => { s.ui.despesasSort = toggleSort(s.ui.despesasSort, campo); }); }
+export function setVendasFiltro(patch) { updateUI(s => { s.ui.vendasFiltro = { ...s.ui.vendasFiltro, ...patch }; }); }
+export function setDespesasFiltro(patch) { updateUI(s => { s.ui.despesasFiltro = { ...s.ui.despesasFiltro, ...patch }; }); }
+export function setFluxoMesReceber(i) { updateUI(s => { s.ui.fluxoMesReceber = i; }); }
 
 export function addPlataforma(tipo) { update(s => s.plataformas[tipo].push({ id: uid('pf'), nome: 'Nova plataforma', valor: 0 })); }
 export function setPlataformaCampo(tipo, id, campo, valor) { update(s => { const p = s.plataformas[tipo].find(x => x.id === id); if (p) p[campo] = valor; }); }

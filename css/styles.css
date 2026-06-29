@@ -369,6 +369,29 @@ tr.row-nova > td { animation: gpr-rowflash 1.6s ease; }
 .emp-add { display: flex; align-items: center; gap: 6px; width: 100%; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--primary); background: transparent; border: 0; border-top: 1px solid var(--line); margin-top: 6px; padding: 11px 10px 6px; cursor: pointer; }
 .emp-add:hover { color: var(--primary-d); }
 [data-theme="dark"] .emp-item.active { background: var(--surface-2); color: #6ea8ff; }
+
+/* ===== Combo multi-empresa (consolidação) + cor por empresa ===== */
+.emp-item { gap: 6px; padding: 5px 7px; }
+.emp-pick { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; font: inherit; font-size: 14px; font-weight: 600; color: var(--text); background: transparent; border: 0; border-radius: 8px; padding: 5px 4px; cursor: pointer; text-align: left; }
+.emp-pick:hover { color: var(--primary-d); }
+.emp-item.primary { background: var(--blue-bg); }
+[data-theme="dark"] .emp-item.primary { background: var(--surface-2); }
+.emp-dot { width: 11px; height: 11px; border-radius: 50%; flex: 0 0 auto; display: inline-block; vertical-align: middle; box-shadow: 0 0 0 2px var(--surface); }
+.emp-cell { white-space: nowrap; font-weight: 600; }
+.emp-cell .emp-dot { margin-right: 6px; }
+.emp-color-list { list-style: none; padding: 0; margin: 10px 0; display: flex; flex-direction: column; gap: 7px; }
+.emp-color-list li { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.emp-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; color: var(--primary); background: var(--blue-bg); border-radius: 6px; padding: 1px 6px; margin-left: 6px; flex: 0 0 auto; }
+.emp-chk { width: 24px; height: 24px; flex: 0 0 auto; display: grid; place-items: center; font-size: 13px; font-weight: 800; color: var(--primary); background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; transition: .12s; }
+.emp-chk.on { background: var(--primary); color: #fff; border-color: var(--primary); }
+.emp-chk:hover { border-color: var(--primary); }
+.emp-panel-hint { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--muted); }
+.emp-trigger .emp-dot { width: 12px; height: 12px; }
+.emp-trigger.agg { border-color: var(--primary); }
+
+/* Banner do modo consolidado (só-leitura) */
+.agg-banner { display: flex; align-items: center; gap: 8px; background: var(--blue-bg); color: var(--primary-d); border: 1px solid var(--primary); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 13.5px; }
+[data-theme="dark"] .agg-banner { background: var(--surface-2); color: #cfe0ff; }
 .sidebar-tema { display: none; }
 
 /* ---- Cadastro (redesign) ---- */

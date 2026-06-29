@@ -10,7 +10,7 @@ import {
   addCliente, renomearCliente, removerCliente, removerClientes,
   addProduto, renomearProduto, removerProduto, removerProdutos,
   addAno, removerAno, setAnoAtivo, GRUPOS,
-  exportarBackup, restaurarBackup,
+  exportarBackup, restaurarBackup, isAggregated, getSelectedIds, getCompanies, empresaCor,
 } from '../store.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
 import { pageHead, options, moneyInput } from '../ui.js';
@@ -58,6 +58,18 @@ const produtoRow = (p) => `<tr data-row="${p.id}" data-tbl="produtos">${chk(p.id
 const fornecedorRow = (f) => `<tr data-row="${f.id}" data-tbl="fornecedores">${chk(f.id, 'fornecedores')}<td><input class="inp-flush" data-forn-id="${f.id}" value="${esc(f.nome)}"></td>${rmBtn('rm-forn', f.id)}</tr>`;
 
 export function render(container) {
+  if (isAggregated()) {   // 2+ empresas: cadastro é por empresa → mostra aviso + lista colorida das selecionadas
+    const sel = getSelectedIds(), comps = getCompanies().filter(c => sel.includes(c.id));
+    const itens = comps.map(c => `<li><span class="emp-dot" style="background:${empresaCor(c.id)}"></span> ${esc(c.nome || '(sem nome)')}</li>`).join('');
+    container.innerHTML = `
+      ${pageHead('Cadastro', 'Configuração é por empresa')}
+      <div class="card card-pad">
+        <p>Você está na <strong>visão consolidada</strong> de ${comps.length} empresas:</p>
+        <ul class="emp-color-list">${itens}</ul>
+        <p class="hint">Para editar contas, canais, metas, categorias e listas, selecione <strong>1 empresa</strong> no seletor do topo.</p>
+      </div>`;
+    return;
+  }
   const s = getState();
   const e = s.empresa;
   const ano = anoAtivo(s);
