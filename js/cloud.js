@@ -24,7 +24,13 @@ export async function getSession() { const c = client(); if (!c) return null; co
 export async function currentUser() { const s = await getSession(); return s ? s.user : null; }
 export async function signUp(email, password) { const c = client(); if (!c) return { error: { message: 'Sem conexão.' } }; return c.auth.signUp({ email: String(email).trim(), password }); }
 export async function signIn(email, password) { const c = client(); if (!c) return { error: { message: 'Sem conexão.' } }; return c.auth.signInWithPassword({ email: String(email).trim(), password }); }
-export async function signOut() { const c = client(); if (!c) return; try { await c.auth.signOut(); } catch (e) {} }
+export async function signOut() { _meuDono = null; const c = client(); if (!c) return; try { await c.auth.signOut(); } catch (e) {} }
+// Id do DONO da conta (membro → dono; senão ele mesmo). Cacheado por sessão.
+let _meuDono = null;
+export async function getMeuDono() {
+  if (_meuDono) return _meuDono;
+  try { const c = client(); if (!c) return null; const { data } = await c.rpc('meu_dono'); _meuDono = data || null; return _meuDono; } catch (e) { return null; }
+}
 export async function resetPassword(email) { const c = client(); if (!c) return { error: { message: 'Sem conexão.' } }; return c.auth.resetPasswordForEmail(String(email).trim(), { redirectTo: location.origin + location.pathname }); }
 export async function updatePassword(newPassword) { const c = client(); if (!c) return { error: { message: 'Sem conexão.' } }; return c.auth.updateUser({ password: newPassword }); }
 export function onAuthChange(cb) { const c = client(); if (!c) return; c.auth.onAuthStateChange((event, session) => cb(event, session)); }
@@ -34,7 +40,8 @@ export async function cloudLoad() {
   try {
     const c = client(); if (!c) return null;
     const u = await currentUser(); if (!u) return null;
-    const { data, error } = await c.from('user_data').select('data').eq('owner_id', u.id).maybeSingle();
+    const ownerId = (await getMeuDono()) || u.id;   // membro lê os dados do DONO da conta
+    const { data, error } = await c.from('user_data').select('data').eq('owner_id', ownerId).maybeSingle();
     if (error) { console.warn('[cloud] load:', error.message); return null; }
     return data ? data.data : null;
   } catch (e) { console.warn('[cloud] load exc:', e); return null; }
@@ -43,7 +50,8 @@ export async function cloudSave(state) {
   try {
     const c = client(); if (!c) return false;
     const u = await currentUser(); if (!u) return false;
-    const { error } = await c.from('user_data').upsert({ owner_id: u.id, data: state, updated_at: new Date().toISOString() });
+    const ownerId = (await getMeuDono()) || u.id;   // membro grava na linha do DONO
+    const { error } = await c.from('user_data').upsert({ owner_id: ownerId, data: state, updated_at: new Date().toISOString() });
     if (error) { console.warn('[cloud] save:', error.message); return false; }
     return true;
   } catch (e) { console.warn('[cloud] save exc:', e); return false; }
@@ -98,7 +106,8 @@ export async function getMyAccess() {
     const u = await currentUser(); if (!u) return demo;
     const prof = await getProfile();
     if (prof && prof.is_admin) return { admin: true, demo: false, readOnly: false, planLimit: Infinity, status: 'active', plan: null };
-    const { data: sub } = await c.from('subscriptions').select('plan_code,status').eq('owner_id', u.id).maybeSingle();
+    const ownerId = (await getMeuDono()) || u.id;   // membro herda a assinatura do DONO da conta
+    const { data: sub } = await c.from('subscriptions').select('plan_code,status').eq('owner_id', ownerId).maybeSingle();
     if (!sub) return demo;   // nunca assinou → demo
     const status = sub.status || 'pending';
     const ativo = ['active', 'trialing'].includes(status);
@@ -119,15 +128,14 @@ export async function getMyAccess() {
 export async function adminMetrics() {
   try {
     const c = client(); if (!c) return { usuarios: 0, assinantes: 0, empresas: 0 };
-    const u = await c.from('profiles').select('id', { count: 'exact', head: true });
-    const s = await c.from('subscriptions').select('owner_id', { count: 'exact', head: true }).in('status', ['active', 'trialing']);
-    const d = await c.from('user_data').select('owner_id', { count: 'exact', head: true });
-    return { usuarios: u.count || 0, assinantes: s.count || 0, empresas: d.count || 0 };
+    const { data } = await c.rpc('metrics_counts');   // contagem sem expor dados (LGPD)
+    const m = Array.isArray(data) ? data[0] : data;
+    return { usuarios: Number(m && m.usuarios) || 0, assinantes: Number(m && m.assinantes) || 0, empresas: Number(m && m.contas) || 0 };
   } catch (e) { return { usuarios: 0, assinantes: 0, empresas: 0 }; }
 }
 export async function adminListUsers() {
   const c = client(); if (!c) return [];
-  const { data: profs } = await c.from('profiles').select('id,email,is_admin,niche,created_at').order('created_at');
+  const { data: profs } = await c.from('profiles').select('id,email,purchase_email,full_name,setor,instagram,is_admin,niche,created_at').order('created_at');
   const { data: subs } = await c.from('subscriptions').select('owner_id,plan_code,status,current_period_end');
   const m = {}; (subs || []).forEach(s => m[s.owner_id] = s);
   return (profs || []).map(p => ({ ...p, sub: m[p.id] || null }));
@@ -146,3 +154,30 @@ export async function adminListWaNumbers() { const c = client(); if (!c) return 
 export async function adminAddWaNumber(phone, ownerId, nome) { const c = client(); const { error } = await c.from('whatsapp_numbers').upsert({ phone: String(phone).replace(/\D/g, ''), owner_id: ownerId, nome: nome || '', authorized: true }); return !error ? true : (console.warn('[admin] wa', error.message), false); }
 export async function adminDelWaNumber(phone) { const c = client(); const { error } = await c.from('whatsapp_numbers').delete().eq('phone', phone); return !error; }
 export async function adminAiUsage() { try { const c = client(); const { data } = await c.from('ai_usage').select('in_tokens,out_tokens'); const t = (data || []).reduce((a, x) => ({ i: a.i + (x.in_tokens || 0), o: a.o + (x.out_tokens || 0) }), { i: 0, o: 0 }); return t; } catch (e) { return { i: 0, o: 0 }; } }
+
+// ---- admin-actions (auth-admin: e-mail/senha/equipe) — Edge Function gated por JWT (admin/dono) ----
+async function callAdmin(action, params = {}) {
+  try {
+    const s = await getSession(); if (!s) return { ok: false, error: 'não logado' };
+    const r = await fetch(`${SUPABASE_URL}/functions/v1/admin-actions`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${s.access_token}`, 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, ...params }),
+    });
+    return await r.json().catch(() => ({ ok: false }));
+  } catch (e) { return { ok: false, error: String(e) }; }
+}
+export async function adminSetUserEmail(userId, email) { return callAdmin('set_email', { user_id: userId, email }); }
+export async function adminSetUserPassword(userId, password) { return callAdmin('set_password', { user_id: userId, password }); }
+export async function adminGenPassword(userId) { return callAdmin('gen_password', { user_id: userId }); }
+export async function adminCreateAdmin(email, password) { return callAdmin('create_admin', { email, password }); }
+export async function adminSetAdmin(userId, value) { return callAdmin('set_admin', { user_id: userId, value }); }
+// Equipe (seats) — admin (qualquer conta) ou o próprio dono (sua conta)
+export async function listMembers(ownerId) {
+  const c = client(); if (!c) return [];
+  const { data } = await c.from('members').select('member_id,email,nome,role,created_at').eq('account_owner_id', ownerId).order('created_at');
+  return data || [];
+}
+export async function addMember(ownerId, email, nome) { return callAdmin('create_member', { owner_id: ownerId, email, nome }); }
+export async function removeMember(memberId) { return callAdmin('remove_member', { member_id: memberId }); }
+export async function waNumbersDe(ownerId) { const c = client(); if (!c) return []; const { data } = await c.from('whatsapp_numbers').select('phone,nome,authorized').eq('owner_id', ownerId).order('created_at'); return data || []; }

@@ -62,10 +62,10 @@ Deno.serve(async (req: Request) => {
       let id = await uidExist(body.email);
       if (!id) id = await createUser(body.email, senha);
       if (!id) return json({ error: 'não criou membro' }, 400);
-      await rest('members', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ member_id: id, account_owner_id: ownerId, nome: body.nome || '', role: body.role || 'membro' }) });
+      await rest('members', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify({ member_id: id, account_owner_id: ownerId, email: body.email, nome: body.nome || '', role: body.role || 'membro' }) });
       const dn = await rest(`profiles?id=eq.${ownerId}&select=full_name,email`); const dono = (Array.isArray(dn.data) && dn.data[0] && (dn.data[0].full_name || dn.data[0].email)) || 'O titular';
       await emailMembro(body.email, body.nome || '', senha, dono);
-      return json({ ok: true, id });
+      return json({ ok: true, id, senha });
     }
     if (a === 'remove_member') {
       const r = await rest(`members?member_id=eq.${body.member_id}&select=account_owner_id`);
