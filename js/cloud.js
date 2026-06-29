@@ -80,24 +80,39 @@ export async function acceptTerms(version) {
 }
 export async function isAdminUser() { const p = await getProfile(); return !!(p && p.is_admin); }
 
-// Acesso do usuário: admin? só-leitura (assinatura cancelada)? limite de empresas do plano?
-export async function getMyAccess() {
-  const free = { admin: false, readOnly: false, planLimit: Infinity, status: 'active', plan: null };
+export async function updateProfile(patch) {
   try {
-    const c = client(); if (!c) return free;
-    const u = await currentUser(); if (!u) return free;
+    const c = client(); if (!c) return false; const u = await currentUser(); if (!u) return false;
+    const { error } = await c.from('profiles').update({ ...patch, updated_at: new Date().toISOString() }).eq('id', u.id);
+    return !error ? true : (console.warn('[perfil]', error.message), false);
+  } catch (e) { return false; }
+}
+
+// Acesso do usuário:
+//   admin → tudo. assinatura ATIVA → edita (limite do plano). assinatura CANCELADA → seus dados, só-leitura.
+//   SEM assinatura (nunca comprou) → modo DEMO (vê dados de exemplo, só-leitura; ao comprar com o mesmo e-mail vira completo).
+export async function getMyAccess() {
+  const demo = { admin: false, demo: true, readOnly: true, planLimit: 0, status: 'none', plan: null };
+  try {
+    const c = client(); if (!c) return demo;
+    const u = await currentUser(); if (!u) return demo;
     const prof = await getProfile();
-    if (prof && prof.is_admin) return { admin: true, readOnly: false, planLimit: Infinity, status: 'active', plan: null };
+    if (prof && prof.is_admin) return { admin: true, demo: false, readOnly: false, planLimit: Infinity, status: 'active', plan: null };
     const { data: sub } = await c.from('subscriptions').select('plan_code,status').eq('owner_id', u.id).maybeSingle();
-    const status = (sub && sub.status) || 'active';
+    if (!sub) return demo;   // nunca assinou → demo
+    const status = sub.status || 'pending';
     const ativo = ['active', 'trialing'].includes(status);
-    let planLimit = Infinity;
-    if (ativo && sub && sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies').eq('code', sub.plan_code).maybeSingle(); if (pl) planLimit = pl.max_companies; }
+    if (ativo) {
+      let planLimit = Infinity;
+      if (sub.plan_code) { const { data: pl } = await c.from('plans').select('max_companies').eq('code', sub.plan_code).maybeSingle(); if (pl) planLimit = pl.max_companies; }
+      return { admin: false, demo: false, readOnly: false, planLimit, status, plan: sub.plan_code };
+    }
+    // pending/canceled/past_due → tem registro mas não está ativo
     const { data: cfg } = await c.from('app_config').select('value').eq('key', 'geral').maybeSingle();
     const cancelBehavior = (cfg && cfg.value && cfg.value.cancel_behavior) || 'read_only';
-    const readOnly = !ativo && ['canceled', 'past_due'].includes(status) && cancelBehavior === 'read_only';
-    return { admin: false, readOnly, planLimit, status, plan: sub && sub.plan_code };
-  } catch (e) { return free; }
+    if (['canceled', 'past_due'].includes(status)) return { admin: false, demo: false, readOnly: cancelBehavior === 'read_only', planLimit: 0, status, plan: sub.plan_code };
+    return demo;   // pending → ainda em demo
+  } catch (e) { return demo; }
 }
 
 // ---- GPR Core (admin) — RLS garante que só admin lê/escreve ------------------

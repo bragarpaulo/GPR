@@ -9,10 +9,13 @@ import { PALETA } from './charts.js';   // paleta p/ cor por empresa (consolida�
 const LS_KEY = 'mapa_financeiro_mvp_v2';
 let _scope = '';                                  // sufixo por usuário (isola o cache local)
 function lsKey() { return _scope ? (LS_KEY + '_' + _scope) : LS_KEY; }
-let _readOnly = false, _planLimit = Infinity;   // assinatura cancelada → só-leitura; limite de empresas do plano
+let _readOnly = false, _planLimit = Infinity, _demo = false;   // assinatura cancelada → só-leitura; demo = dados de exemplo (não persiste)
 export function setAccess(a = {}) { _readOnly = !!a.readOnly; _planLimit = (a.planLimit == null ? Infinity : a.planLimit); }
 export function isReadOnly() { return _readOnly; }
+export function isDemo() { return _demo; }
 export function planInfo() { return { limit: _planLimit, count: (root.companies || []).length }; }
+// Modo demonstração: carrega dados de exemplo em memória, só-leitura, SEM gravar (nuvem/local intactos).
+export function enterDemo() { root = demoRoot(); root.selectedIds = [root.activeId]; _demo = true; _readOnly = true; aplicarVigente(active()); emit(); }
 
 function freshCategorias() { return DEFAULT_CATEGORIES.map(c => ({ ...c })); }
 function freshReceitaCats() { return DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })); }
@@ -145,7 +148,7 @@ export function flushLocal() {
   clearTimeout(_localTimer); _localTimer = null;
   try { localStorage.setItem(lsKey(), JSON.stringify(root)); } catch (e) {}
 }
-export function save() { _rev++; _lastLocalSave = Date.now(); scheduleLocal(); scheduleCloud(); }
+export function save() { if (_demo) { _rev++; return; } _rev++; _lastLocalSave = Date.now(); scheduleLocal(); scheduleCloud(); }
 if (typeof window !== 'undefined') window.addEventListener('beforeunload', flushLocal);
 function emit() { listeners.forEach(fn => fn(getState())); }
 export function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }

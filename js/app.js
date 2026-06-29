@@ -265,6 +265,11 @@ function renderView() {
     b.className = 'agg-banner';
     b.innerHTML = `👁 <strong>Visão consolidada de ${getSelectedIds().length} empresas</strong> — somente leitura. Selecione 1 empresa no topo para editar.`;
     contentEl.replaceChildren(b, root);
+  } else if (store.isDemo()) {
+    const b = document.createElement('div');
+    b.className = 'agg-banner ro-banner';
+    b.innerHTML = `🎬 <strong>Modo demonstração</strong> — você está vendo dados de exemplo (somente leitura). Assine para usar com os seus próprios dados.`;
+    contentEl.replaceChildren(b, root);
   } else if (store.isReadOnly()) {
     const b = document.createElement('div');
     b.className = 'agg-banner ro-banner';
@@ -413,16 +418,50 @@ async function bootApp() {
   setUserScope(u.id);
   const t = await cloud.termsStatus();
   if (t.version && !t.accepted) { renderTermos(t); return; }
+  const prof = await cloud.getProfile();
+  if (!prof || !prof.full_name) { renderPerfil(prof || {}); return; }   // onboarding: nome/setor/instagram
   _bootedUid = u.id; _appReady = true;
-  const acc = await cloud.getMyAccess();        // admin? só-leitura (assinatura)? limite de empresas?
-  _isAdmin = acc.admin; store.setAccess(acc);   // mostra "GPR Core" p/ admin; aplica trava/limite
+  const acc = await cloud.getMyAccess();        // admin? assinante? demo (não comprou)?
+  _isAdmin = acc.admin;
   hideAuthGate();
   if (!location.hash) location.hash = '#inicio';
   buildNav();
-  await initCloud();                      // carrega os dados DO usuário (user_data)
+  if (acc.demo) {
+    store.enterDemo();                    // sem compra → dados de exemplo, só-leitura (não grava nada)
+    store.aplicarPeriodoVigente(); renderView();
+    return;
+  }
+  store.setAccess(acc);                    // assinante/cancelado: aplica limite/trava
+  await initCloud();                       // carrega os dados DO usuário (user_data)
   store.aplicarPeriodoVigente();
   renderView();
   maybeOfferLegado(u.id);                  // banner não-bloqueante (1× por usuário)
+}
+// Onboarding: nome, setor e Instagram no 1º acesso (grava em profiles).
+function renderPerfil(prof) {
+  const el = authGateEl();
+  const inner = `
+    <label class="auth-label">Seu nome</label>
+    <input id="pf-nome" class="auth-input" value="${esc(prof.full_name || '')}" placeholder="Nome completo">
+    <label class="auth-label">Setor / segmento</label>
+    <input id="pf-setor" class="auth-input" value="${esc(prof.setor || '')}" placeholder="Ex.: Dentista, Mentoria, Loja…">
+    <label class="auth-label">Instagram</label>
+    <input id="pf-insta" class="auth-input" value="${esc(prof.instagram || '')}" placeholder="@seuperfil">
+    <button id="pf-go" class="auth-btn">Concluir cadastro</button>
+    <div class="auth-links"><a id="pf-sair">Sair</a></div>
+    <div id="pf-err" class="auth-err"></div>`;
+  el.innerHTML = authShell('Complete seu cadastro', 'Conte um pouco sobre você para personalizar o GPR.', inner);
+  el.querySelector('#pf-sair').onclick = async () => { await cloud.signOut(); };
+  const go = el.querySelector('#pf-go');
+  go.onclick = async () => {
+    const nome = (el.querySelector('#pf-nome').value || '').trim();
+    if (!nome) { el.querySelector('#pf-err').textContent = 'Informe seu nome.'; return; }
+    go.disabled = true; go.textContent = 'Salvando…';
+    const ok = await cloud.updateProfile({ full_name: nome, setor: el.querySelector('#pf-setor').value.trim(), instagram: el.querySelector('#pf-insta').value.trim() });
+    if (!ok) { el.querySelector('#pf-err').textContent = 'Erro ao salvar. Tente de novo.'; go.disabled = false; go.textContent = 'Concluir cadastro'; return; }
+    _bootedUid = null; bootApp();
+  };
+  el.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); }));
 }
 // Oferece importar dados deste navegador (de antes do login) — sem travar o boot, 1× por usuário.
 function maybeOfferLegado(uid) {
