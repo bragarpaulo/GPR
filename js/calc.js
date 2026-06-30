@@ -1,6 +1,6 @@
 // calc.js — MOTOR DE CÁLCULO. Replica fielmente as fórmulas da planilha. Multi-ano.
 import { MESES, STATUS_VENDA, STATUS_DESPESA } from './config.js';
-import { num, mesAno, hoje, parseISO, chaveMes, chavesAno, anoAtivo, mesesDecorridos, metaArr, orcAno } from './util.js';
+import { num, mesAno, hoje, parseISO, chaveMes, chavesAno, anoAtivo, anosSelecionados, mesesDecorridos, metaArr, orcAno } from './util.js';
 
 // ===== Campos derivados ===================================================
 export function statusVenda(v) {
@@ -267,7 +267,37 @@ export function calcProjecao(s, ndias = 30) {
 }
 
 // ===== Dashboard ==========================================================
+// Multi-ano: soma os números entre os anos selecionados (KPIs, pizzas, totais) reusando o cálculo
+// por ano. Sem isso, ao marcar 2025+2026 o dashboard mostrava só o ano primário (max) — vazio se ele
+// não tem lançamentos. O saldo de caixa usa o ano mais recente (é um saldo "de agora").
+function calcDashboardMulti(s, anos) {
+  const porAno = anos.map(y => calcDashboard({ ...s, ui: { ...s.ui, anosSel: [y], anoAtivo: y } }));
+  const soma = (f) => porAno.reduce((a, d) => a + (+d[f] || 0), 0);
+  const mergePie = (key, labelKey) => {
+    const m = {};
+    porAno.forEach(d => (d[key] || []).forEach(it => { if (!m[it.id]) m[it.id] = { id: it.id, [labelKey]: it[labelKey], valor: 0 }; m[it.id].valor += it.valor; }));
+    const arr = Object.values(m).filter(x => x.valor > 0);
+    const tot = arr.reduce((a, x) => a + x.valor, 0) || 1;
+    arr.forEach(x => { x.pct = x.valor / tot; x.destaque = x.pct >= 0.20; });
+    return arr.sort((a, b) => b.valor - a.valor);
+  };
+  const base = porAno[porAno.length - 1];                     // ano mais recente (p/ saldo + séries)
+  const contasReceberMes = soma('contasReceberMes'), contasReceberProx = soma('contasReceberProx');
+  const contasPagarMes = soma('contasPagarMes'), contasPagarTotal = soma('contasPagarTotal');
+  const saldoProvMes = base.saldoAtual + contasReceberMes - contasPagarMes;
+  return { ...base,
+    ano: anoAtivo(s), isAno: true, periodoLabel: `Anos ${anos.join(' + ')}`,
+    receita: soma('receita'), aVista: soma('aVista'), aPrazo: soma('aPrazo'), despesaTotal: soma('despesaTotal'), lucro: soma('lucro'),
+    recebimentos: soma('recebimentos'), pagamentos: soma('pagamentos'), geracaoCaixa: soma('geracaoCaixa'),
+    contasReceberMes, contasReceberProx, contasPagarMes, contasPagarTotal, contasPagarProx: contasPagarTotal - contasPagarMes,
+    saldoProvMes, saldoProvProx: saldoProvMes + contasReceberProx - (contasPagarTotal - contasPagarMes), inadimplencia: soma('inadimplencia'),
+    canalTot: mergePie('canalTot', 'canal'), catDespesas: mergePie('catDespesas', 'cat'),
+    totalAnualReceita: soma('totalAnualReceita'), totalAnualDespesa: soma('totalAnualDespesa'), totalAnualGeracao: soma('totalAnualGeracao'),
+  };
+}
 export function calcDashboard(s) {
+  const anosSel = anosSelecionados(s);
+  if (anosSel.length > 1) return calcDashboardMulti(s, anosSel);
   const ano = anoAtivo(s);
   const dre = calcDRE(s);
   const fluxo = calcFluxo(s);
