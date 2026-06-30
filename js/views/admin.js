@@ -9,7 +9,9 @@ const GREEN_URL = 'https://qdioqeejcneijctotyft.supabase.co/functions/v1/green-w
 const kpiBox = (l, v) => `<div class="card kpi k-blue"><div class="kpi-label">${l}</div><div class="kpi-value">${v}</div></div>`;
 const flash = (b, ok) => { const t = b.dataset._t || (b.dataset._t = b.textContent); b.textContent = ok ? '✓' : 'Erro'; setTimeout(() => b.textContent = t, 1500); };
 const planOptsFn = (plans) => (sel) => ['<option value="">— sem —</option>'].concat(plans.map(p => `<option value="${esc(p.code)}" ${sel === p.code ? 'selected' : ''}>${esc(p.code)} · ${esc(p.name)}</option>`)).join('');
-const stOptsFn = (sel) => ['pending', 'active', 'trialing', 'past_due', 'canceled'].map(s => `<option ${sel === s ? 'selected' : ''}>${s}</option>`).join('');
+const STATUS_PT = { active: 'Ativo', trialing: 'Em teste', pending: 'Pendente', past_due: 'Atrasado', canceled: 'Cancelado', none: 'Sem assinatura' };
+const stPt = (s) => STATUS_PT[s] || s || '—';
+const stOptsFn = (sel) => ['active', 'trialing', 'pending', 'past_due', 'canceled'].map(s => `<option value="${s}" ${sel === s ? 'selected' : ''}>${stPt(s)}</option>`).join('');
 
 const CARDS = [
   { k: 'assinantes', ico: '🧑‍💼', t: 'Assinantes', d: 'Clientes — editar, senha, assinatura, equipe, WhatsApp' },
@@ -104,7 +106,7 @@ async function loadAssinantes(body) {
     ph: '🔎 Buscar e-mail…', cols: 2,
     addBtn: { label: '+ Novo assinante', onClick: () => openNovoAssinante(plans, () => loadAssinantes(body)) },
     filtro: (u, q) => (u.email || '').toLowerCase().includes(q) || (u.full_name || '').toLowerCase().includes(q),
-    linha: (u) => `<tr class="sub-row" data-uid="${u.id}"><td><strong>${esc(u.full_name || u.email || '(sem e-mail)')}</strong><div class="hint">${esc(u.email || '')} · ${esc((u.sub && u.sub.status) || 'sem assinatura')}</div></td><td style="text-align:right"><button class="btn btn-sm btn-primary" data-edit="${u.id}">Editar</button></td></tr>`,
+    linha: (u) => `<tr class="sub-row" data-uid="${u.id}"><td><strong>${esc(u.full_name || u.email || '(sem e-mail)')}</strong><div class="hint">${esc(u.email || '')} · ${esc(u.sub ? stPt(u.sub.status) : 'sem assinatura')}</div></td><td style="text-align:right"><button class="btn btn-sm btn-primary" data-edit="${u.id}">Editar</button></td></tr>`,
     wire: (b) => b.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => { const u = subs.find(x => x.id === btn.dataset.edit); openSubscriber(u); }),
   });
 }
@@ -116,7 +118,7 @@ function openNovoAssinante(plans, done) {
     { key: 'senha', label: 'Senha inicial (mín. 6)', type: 'text', ph: 'mín. 6 caracteres' },
     { key: 'nome', label: 'Nome', type: 'text' },
     { key: 'plano', label: 'Plano', type: 'select', options: planOpts },
-    { key: 'status', label: 'Status da assinatura', type: 'select', value: 'active', options: ['active', 'trialing', 'pending', 'canceled'].map(s => ({ v: s, t: s })) },
+    { key: 'status', label: 'Status da assinatura', type: 'select', value: 'active', options: ['active', 'trialing', 'pending', 'canceled'].map(s => ({ v: s, t: stPt(s) })) },
   ], async (v) => {
     if (!v.email || v.senha.length < 6) return { error: 'Informe e-mail e senha (mín. 6 caracteres).' };
     // Sem plano = fica em demo (não cria assinatura ativa); com plano = aplica o status escolhido.
@@ -144,7 +146,7 @@ function openSubscriber(u) {
           </div>
           <button class="btn btn-sm btn-primary" id="sb-save-dados" style="margin-top:8px">Salvar dados & login</button></div>
         <div class="sub-sec"><div class="ig-sub">Senha</div>
-          <div class="toolbar" style="gap:6px"><input id="sb-pw" type="text" placeholder="nova senha (mín. 6)" style="width:200px"><button class="btn btn-sm" id="sb-set-pw">Definir</button><button class="btn btn-sm" id="sb-gen-pw">Gerar aleatória</button></div>
+          <div class="toolbar" style="gap:6px"><input id="sb-pw" type="text" placeholder="nova senha (mín. 6)" style="width:200px"><button class="btn btn-sm" id="sb-set-pw">Definir</button><button class="btn btn-sm" id="sb-gen-pw">Gerar aleatória</button><button class="btn btn-sm" id="sb-reset">✉️ Enviar reset por e-mail</button></div>
           <div id="sb-pw-out" class="hint" style="margin-top:6px"></div></div>
         <div class="sub-sec"><div class="ig-sub">Assinatura</div>
           <div class="toolbar" style="gap:6px"><select id="sb-plan">${planOpts(u.sub && u.sub.plan_code)}</select><select id="sb-status">${stOptsFn((u.sub && u.sub.status) || 'pending')}</select><button class="btn btn-sm btn-primary" id="sb-save-sub">Salvar</button><button class="btn btn-sm" id="sb-renew">Renovar</button><button class="btn btn-sm" id="sb-cancel">Cancelar</button></div></div>
@@ -164,6 +166,7 @@ function openSubscriber(u) {
       // Senha
       body.querySelector('#sb-set-pw').onclick = async () => { const pw = body.querySelector('#sb-pw').value; if (pw.length < 6) { alert('Mínimo 6 caracteres.'); return; } const r = await cloud.adminSetUserPassword(u.id, pw); body.querySelector('#sb-pw-out').textContent = r.ok ? 'Senha definida ✓' : 'Erro ao definir.'; };
       body.querySelector('#sb-gen-pw').onclick = async () => { const r = await cloud.adminGenPassword(u.id); body.querySelector('#sb-pw-out').textContent = r.ok ? `Nova senha: ${r.senha} (anote e repasse)` : 'Erro.'; };
+      body.querySelector('#sb-reset').onclick = async () => { const alvo = u.email || u.purchase_email; if (!alvo) { body.querySelector('#sb-pw-out').textContent = 'Sem e-mail de login para enviar.'; return; } const r = await cloud.resetPassword(alvo); body.querySelector('#sb-pw-out').textContent = (r && !r.error) ? `E-mail de redefinição enviado para ${alvo} ✓` : 'Erro: ' + ((r && r.error && r.error.message) || 'falhou'); };
       // Assinatura
       const salvarSub = async (status) => { const ok = await cloud.adminSetSubscription(u.id, body.querySelector('#sb-plan').value, status || body.querySelector('#sb-status').value); if (ok) { u.sub = { plan_code: body.querySelector('#sb-plan').value, status: status || body.querySelector('#sb-status').value }; } return ok; };
       body.querySelector('#sb-save-sub').onclick = async (e) => flash(e.target, await salvarSub());

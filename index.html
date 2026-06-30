@@ -13,8 +13,23 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js" defer></script>
   <!-- xlsx/html2canvas/jspdf/jspdf-autotable NÃO entram no boot: carregam sob demanda (js/lazylibs.js) ao Importar/Exportar -->
+  <style>
+    #boot-loader { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; background: linear-gradient(135deg, #1D4ED8, #0F172A 72%); color: #fff; font-family: Inter, system-ui, sans-serif; }
+    #boot-loader .boot-logo { width: 60px; height: 60px; border-radius: 16px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
+    #boot-loader .boot-spin { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: boot-rot .8s linear infinite; }
+    #boot-loader .boot-msg { font-weight: 600; font-size: 14px; opacity: .92; }
+    @keyframes boot-rot { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
+  <!-- Loader de boot: visível imediatamente (antes do JS) e removido quando o app/login aparece -->
+  <div id="boot-loader">
+    <div class="boot-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round" width="34" height="34"><path d="M4 20V14M10 20V10M16 20V13"/><path d="M3 10l6-5 4 3 6-6"/><path d="M19 2h3v3"/></svg>
+    </div>
+    <div class="boot-spin"></div>
+    <div class="boot-msg">Carregando seus dados…</div>
+  </div>
   <div id="layout">
     <aside id="sidebar">
       <div class="brand">

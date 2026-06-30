@@ -253,6 +253,7 @@ function wireStickyHScroll(container) {
 
 let lastRoute = null;
 function renderView() {
+  hideBootLoader();
   charts.destroyAll();
   closeNav();
   const route = currentRoute();
@@ -317,8 +318,11 @@ document.addEventListener('click', (e) => {
 
 // ===== Autenticação: gate de login + termos (multi-inquilino) =====
 let _appReady = false, _bootedUid = null, _isAdmin = false, _isOwner = false;
-function authGateEl() { let el = document.getElementById('auth-gate'); if (!el) { el = document.createElement('div'); el.id = 'auth-gate'; document.body.appendChild(el); } return el; }
+function authGateEl() { hideBootLoader(); let el = document.getElementById('auth-gate'); if (!el) { el = document.createElement('div'); el.id = 'auth-gate'; document.body.appendChild(el); } return el; }
 function hideAuthGate() { const el = document.getElementById('auth-gate'); if (el) el.remove(); }
+// Loader de boot: removido assim que QUALQUER tela (login/termos/perfil/app) aparece.
+function hideBootLoader() { const el = document.getElementById('boot-loader'); if (el) el.remove(); }
+setTimeout(hideBootLoader, 12000);   // rede de segurança: nunca deixa o loader preso
 function traduzErroAuth(m) {
   m = String(m || '');
   if (/Invalid login/i.test(m)) return 'E-mail ou senha incorretos.';
