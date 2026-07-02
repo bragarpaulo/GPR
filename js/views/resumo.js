@@ -6,6 +6,7 @@ import { chartLabelOn, getState } from '../store.js';
 import { calcSeriesMultiAno } from '../calc.js';
 import * as charts from '../charts.js';
 
+const sum12 = (arr) => (arr || []).reduce((a, b) => a + (+b || 0), 0);
 function resumoLinha(pairs) {
   return `<div class="chart-summary">` + pairs.map(([l, v, cls]) => `<span><b class="${cls || ''}">${v}</b>${esc(l)}</span>`).join('') + `</div>`;
 }
@@ -90,7 +91,7 @@ export function cardRecebPag(d) {
       ${chartHead('Recebimentos × Pagamentos × Geração de Caixa (ano)', 'ch-recpag', 'Recebimentos-Pagamentos')}
       <div class="chart-canvas-wrap"><canvas id="ch-recpag"></canvas></div>
       ${resumoLinha([[' Recebimentos', fmtBRL0(d.recebimentos), 'pos'], [' Pagamentos', fmtBRL0(d.pagamentos), 'neg'], [' Geração', fmtBRL0(d.geracaoCaixa), d.geracaoCaixa >= 0 ? 'pos' : 'neg']])}
-      ${totalAnualLinha([[' Recebimentos (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Pagamentos (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
+      ${totalAnualLinha([[' Recebimentos (ano)', fmtBRL0(sum12(d.serieRecebimentos)), 'pos'], [' Pagamentos (ano)', fmtBRL0(sum12(d.seriePagamentos)), 'neg'], [' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
     </div>`;
 }
 // Geração de caixa mês a mês (Fluxo de Caixa): mesmo formato do lucro, mas com a série de CAIXA.
