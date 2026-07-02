@@ -233,7 +233,7 @@ export function linhaProjecao(id, labels, valores) {
 }
 
 // Lucro por mês: barras verdes (positivo) / vermelhas (negativo) + linha de tendência (média móvel 3m).
-export function lucroChart(id, labels, lucro, onClick, mostrar = true) {
+export function lucroChart(id, labels, lucro, onClick, mostrar = true, nome = 'Lucro') {
   const cores = lucro.map(v => (Number(v) || 0) >= 0 ? '#16A34A' : '#EF4444');
   // média móvel simples de 3 meses (suaviza variação para mostrar tendência)
   const tend = lucro.map((_, i) => {
@@ -244,7 +244,7 @@ export function lucroChart(id, labels, lucro, onClick, mostrar = true) {
   return make(id, {
     type: 'bar',
     data: { labels, datasets: [
-      { label: 'Lucro', data: lucro, backgroundColor: cores, borderRadius: 4, order: 1 },
+      { label: nome, data: lucro, backgroundColor: cores, borderRadius: 4, order: 1 },
       { label: 'Tendência (3m)', data: tend, type: 'line', order: 0, borderColor: '#1D4ED8', backgroundColor: 'rgba(29,78,216,.15)', tension: .3, fill: false, borderWidth: 2.5, pointRadius: 2, borderDash: [5, 4] },
     ] }, options: gridOpts('y'), plugins: mostrar ? [barValueLabels] : [],
   }, onClick);

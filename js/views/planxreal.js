@@ -1,6 +1,6 @@
 // views/planxreal.js — Orçado x Realizado das despesas (por categoria/grupo).
 import { getState } from '../store.js';
-import { GRUPOS } from '../config.js';
+import { GRUPOS, MESES } from '../config.js';
 import { calcPlanxReal } from '../calc.js';
 import { pageHead, exportToolbar, wireExport, collapseAllBtn, wireCollapse } from '../ui.js';
 import { esc, fmtBRL0, fmtPct, anoAtivo } from '../util.js';
@@ -44,8 +44,11 @@ export function render(container) {
   }
   body += linha('TOTAL DE DESPESAS', gOrc, gReal, 'row-total row-resultado');
 
+  // Rótulo segue o filtro de meses do topo (mês selecionado ou ano inteiro).
+  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [];
+  const rotulo = sel.length ? sel.map(i => MESES[i]).join(', ') + `/${anoAtivo(s)}` : `Total Ano · ${anoAtivo(s)}`;
   container.innerHTML = `
-    ${pageHead('Orçado × Realizado — Despesas', `Orçado x Realizado (Total Ano) · ${anoAtivo(s)}`)}
+    ${pageHead('Orçado × Realizado — Despesas', `Orçado x Realizado · ${rotulo}`)}
     ${exportToolbar(collapseAllBtn())}
     <div class="hint" style="margin-bottom:10px">Realizado = despesas da DRE (competência). Diferença em vermelho = estourou o orçamento.</div>
     <div class="table-wrap tbl-wide">

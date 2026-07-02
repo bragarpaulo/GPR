@@ -1,11 +1,11 @@
 // views/fluxo.js — Fluxo de Caixa: resumo, projeção, aging, tabela mensal e anexos.
-import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated } from '../store.js';
+import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated, chartLabelOn } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
 import * as charts from '../charts.js';
-import { kpisCaixaProvisoes, cardReceitaDespesa, cardLucro, montarChartsResumo } from './resumo.js';
+import { kpisCaixaProvisoes, cardRecebPag, cardGeracao } from './resumo.js';
 
 function linha(label, arr, totalVal, cls = '') {
   const cells = arr.map(v => `<td class="num ${v < 0 ? 'neg' : ''}">${fmtBRL0(v)}</td>`).join('');
@@ -106,9 +106,9 @@ export function render(container) {
     </div>
 
     ${kpisCaixaProvisoes(d)}
-    <div class="section-title">📉 Gráficos</div>
-    ${cardReceitaDespesa(d)}
-    ${cardLucro(d)}
+    <div class="section-title">📉 Gráficos de caixa</div>
+    ${cardRecebPag(d)}
+    ${cardGeracao(d)}
 
     <div class="section-title">🔮 Projeção de caixa (próximos 30 dias)</div>
     <div class="card chart-box"><h3>Saldo projetado ${chartDlBtn('ch-proj', 'Projecao-de-caixa')}</h3><div class="chart-canvas-wrap"><canvas id="ch-proj"></canvas></div></div>
@@ -157,7 +157,9 @@ export function render(container) {
     { label: 'Saldo', data: f.saldoConta.slice(0, ateSpark), cor: '#ffffff' },
     { label: 'Geração', data: f.resultado.slice(0, ateSpark), cor: '#6EE7B7' },
   ]);
-  montarChartsResumo(d);
+  // Gráficos de CAIXA (não competência): Recebimentos×Pagamentos×Geração + Geração mês a mês.
+  charts.recebPag('ch-recpag', d.serieMeses, d.serieRecebimentos, d.seriePagamentos, d.serieGeracaoCaixa, null, chartLabelOn('ch-recpag'));
+  charts.lucroChart('ch-geracao', d.serieMeses, d.serieGeracaoCaixa, null, chartLabelOn('ch-geracao'), 'Geração');
   wire(container);
 }
 

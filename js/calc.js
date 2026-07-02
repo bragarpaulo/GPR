@@ -149,15 +149,19 @@ export function calcOrcamento(s) {
 }
 
 // ===== Plan x Real ========================================================
+// Segue o filtro de meses do cabeçalho: orcadoTotal/realizadoTotal somam só o(s) mês(es)
+// selecionado(s) (sem seleção = ano inteiro).
 export function calcPlanxReal(s) {
   const ano = anoAtivo(s);
   const dre = calcDRE(s);
   const orcd = orcAno(s, ano);
   const z = () => Array(12).fill(0);
+  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [...Array(12).keys()];
+  const sumSel = (arr) => sel.reduce((a, i) => a + (+arr[i] || 0), 0);
   return s.categorias.map(cat => {
     const orcado = (orcd[cat.id] || z()).map(num);
     const realizado = (dre.catVal[cat.id] || z()).map(v => Math.abs(v));
-    return { cat, orcado, realizado, orcadoTotal: orcado.reduce((a, b) => a + b, 0), realizadoTotal: realizado.reduce((a, b) => a + b, 0) };
+    return { cat, orcado, realizado, orcadoTotal: sumSel(orcado), realizadoTotal: sumSel(realizado) };
   });
 }
 
@@ -303,9 +307,15 @@ export function calcDashboard(s) {
   const fluxo = calcFluxo(s);
   const vd = vendasDerivadas(s);
 
+  // COMPETÊNCIA NÃO CONTA O FUTURO: lançamentos provisionados de meses futuros distorciam
+  // receita/despesa/lucro. No ano corrente, sem mês selecionado, soma só até o MÊS ATUAL
+  // (inclusive). Selecionar um mês futuro explicitamente continua mostrando o mês escolhido.
+  const hj = new Date();
+  const cutComp = ano < hj.getFullYear() ? 12 : ano > hj.getFullYear() ? 12 : Math.min(hj.getMonth(), 11) + 1;
   const todos = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-  const meses = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : todos;
-  const isAno = meses.length === 12;
+  const selExplicita = !!(s.ui.periodoMeses && s.ui.periodoMeses.length);
+  const meses = selExplicita ? [...s.ui.periodoMeses].sort((a, b) => a - b) : todos.slice(0, cutComp);
+  const isAno = !selExplicita || meses.length === 12;
   const pick = (arr) => meses.reduce((a, i) => a + (typeof arr[i] === 'number' ? arr[i] : 0), 0);
   const keysSel = meses.map(i => chaveMes(i, ano));
   const inSel = (k) => keysSel.includes(k);
@@ -349,20 +359,23 @@ export function calcDashboard(s) {
   const totCat = catDespesas.reduce((a, c) => a + c.valor, 0) || 1;
   catDespesas.forEach(c => { c.pct = c.valor / totCat; });
 
+  // Competência: séries e totais só até o corte (meses futuros não aparecem/somam).
+  const sumAte = (arr, n) => arr.slice(0, n).reduce((a, b) => a + b, 0);
   return {
     ano, isAno,
-    periodoLabel: isAno ? `Ano ${ano}` : meses.map(i => MESES[i]).join(', ') + `/${ano}`,
+    periodoLabel: isAno ? (cutComp < 12 ? `Ano ${ano} · até ${MESES[cutComp - 1]}` : `Ano ${ano}`) : meses.map(i => MESES[i]).join(', ') + `/${ano}`,
     receita, aVista, aPrazo, despesaTotal, lucro,
     saldoAtual, recebimentos, pagamentos, geracaoCaixa,
     contasReceberMes, contasReceberProx, contasPagarMes, contasPagarTotal, saldoProvMes, saldoProvProx, inadimplencia,
     canalTot, catDespesas,
     serieMeses: MESES.map(m => m),
-    serieReceita: dre.entradas, serieDespesa: dre.totalDespesas.map(v => Math.abs(v)), serieLucro: dre.lucroLiquido,
+    serieMesesComp: MESES.slice(0, cutComp),
+    serieReceita: dre.entradas.slice(0, cutComp), serieDespesa: dre.totalDespesas.map(v => Math.abs(v)).slice(0, cutComp), serieLucro: dre.lucroLiquido.slice(0, cutComp),
     serieRecebimentos: fluxo.entradas, seriePagamentos: fluxo.saidas, serieGeracaoCaixa: fluxo.resultado,
-    totalAnualReceita: dre.entradas.reduce((a, b) => a + b, 0),
-    totalAnualDespesa: dre.totalDespesas.reduce((a, b) => a + Math.abs(b), 0),
+    totalAnualReceita: sumAte(dre.entradas, cutComp),
+    totalAnualDespesa: sumAte(dre.totalDespesas.map(v => Math.abs(v)), cutComp),
     totalAnualGeracao: fluxo.resultado.reduce((a, b) => a + b, 0),
-    totalAnualLucro: dre.lucroLiquido.reduce((a, b) => a + b, 0),
+    totalAnualLucro: sumAte(dre.lucroLiquido, cutComp),
   };
 }
 

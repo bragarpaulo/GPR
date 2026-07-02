@@ -171,6 +171,25 @@ check('calcVendasPorChave: produto e cliente somam o mesmo total', approx(sum(po
 check('calcVendasPorChave: ordenado desc por valor', porProd.every((x, i) => i === 0 || porProd[i - 1].valor >= x.valor));
 check('calcVendasPorChave: pct soma ~1', porProd.length === 0 || approx(sum(porProd.map(x => x.pct)), 1, 0.01));
 
+console.log('\n== COMPETÊNCIA NÃO CONTA O FUTURO (dashboard) ==');
+{
+  const hj = new Date();
+  if (hj.getMonth() < 11) {   // só faz sentido se existe mês futuro no ano corrente
+    const anoCur = hj.getFullYear();
+    const mk = () => ({ ...demoData(anoCur), categorias: DEFAULT_CATEGORIES.map(c => ({ ...c })), receitaCategorias: DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })), ui: { anoAtivo: anoCur, periodoMeses: [] } });
+    const base = calcDashboard(mk());
+    const sFut = mk();
+    const mFut = String(hj.getMonth() + 2).padStart(2, '0');   // mês seguinte ao atual
+    sFut.vendas.push({ id: 'v-fut', dataVenda: `${anoCur}-${mFut}-15`, dataVencimento: `${anoCur}-${mFut}-15`, valor: 999999, categoriaReceitaId: 'rec_bruta', canalId: '', pedido: '', produto: '', cliente: '', parcela: '', obs: '' });
+    sFut.despesas.push({ id: 'd-fut', dataVencimento: `${anoCur}-${mFut}-15`, valor: 888888, categoriaId: 'marketing', descricao: '', fornecedor: '', obs: '' });
+    const comFut = calcDashboard(sFut);
+    check('Dashboard: venda de mês futuro NÃO entra na receita', approx(comFut.receita, base.receita));
+    check('Dashboard: despesa de mês futuro NÃO entra na despesa', approx(comFut.despesaTotal, base.despesaTotal));
+    check('Dashboard: série de competência corta no mês atual', comFut.serieReceita.length === hj.getMonth() + 1);
+    check('Dashboard: mês futuro selecionado explicitamente APARECE', calcDashboard({ ...sFut, ui: { ...sFut.ui, periodoMeses: [hj.getMonth() + 1] } }).receita >= 999999);
+  } else { console.log('  (dezembro: sem mês futuro no ano — teste pulado)'); }
+}
+
 console.log('\n== MENU: ORDEM E NOMES DAS ABAS ==');
 const ORDEM_MENU = [
   ['inicio', 'Início'], ['dashboard', 'Dashboard'], ['vendas', 'Lançamento de Vendas'], ['despesas', 'Lançamento de Despesas'],

@@ -93,6 +93,17 @@ export function cardRecebPag(d) {
       ${totalAnualLinha([[' Recebimentos (ano)', fmtBRL0(d.totalAnualReceita), 'pos'], [' Pagamentos (ano)', fmtBRL0(d.totalAnualDespesa), 'neg'], [' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
     </div>`;
 }
+// Geração de caixa mês a mês (Fluxo de Caixa): mesmo formato do lucro, mas com a série de CAIXA.
+export function cardGeracao(d) {
+  return `
+    <div class="card chart-box" style="margin-top:14px">
+      ${chartHead('Geração de caixa mês a mês', 'ch-geracao', 'Geracao-de-caixa-mes-a-mes')}
+      <div class="chart-canvas-wrap"><canvas id="ch-geracao"></canvas></div>
+      ${lucroStatsLinha(d.serieGeracaoCaixa)}
+      ${totalAnualLinha([[' Geração (ano)', fmtBRL0(d.totalAnualGeracao), d.totalAnualGeracao >= 0 ? 'pos' : 'neg']])}
+    </div>`;
+}
+
 // Combinado (Fluxo de Caixa): os 3 cards em sequência (cada um já traz margin-top próprio).
 export function chartsResumoHtml(d) {
   return cardReceitaDespesa(d) + cardRecebPag(d) + cardLucro(d);
@@ -111,7 +122,9 @@ export function montarChartsResumo(d, onClickMes) {
     charts.lucroChart('ch-lucro', labels, cat('lucro'), null, chartLabelOn('ch-lucro'));
     return;
   }
-  charts.receitaDespesa('ch-recdesp', d.serieMeses, d.serieReceita, d.serieDespesa, d.serieLucro, onClickMes, chartLabelOn('ch-recdesp'));
+  // Competência (receita/despesa/lucro): eixo cortado no mês atual — futuro provisionado não aparece.
+  const mesesComp = d.serieMesesComp || d.serieMeses;
+  charts.receitaDespesa('ch-recdesp', mesesComp, d.serieReceita, d.serieDespesa, d.serieLucro, onClickMes, chartLabelOn('ch-recdesp'));
   charts.recebPag('ch-recpag', d.serieMeses, d.serieRecebimentos, d.seriePagamentos, d.serieGeracaoCaixa, onClickMes, chartLabelOn('ch-recpag'));
-  charts.lucroChart('ch-lucro', d.serieMeses, d.serieLucro, onClickMes, chartLabelOn('ch-lucro'));
+  charts.lucroChart('ch-lucro', mesesComp, d.serieLucro, onClickMes, chartLabelOn('ch-lucro'));
 }

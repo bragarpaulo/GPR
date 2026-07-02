@@ -86,7 +86,7 @@ function paginar(body, itens, { ph, cols, filtro, linha, wire, addBtn }) {
     const slice = filt.slice(page * PAGE, page * PAGE + PAGE);
     const rows = slice.map(linha).join('') || `<tr><td colspan="${cols}" class="empty">Nada encontrado.</td></tr>`;
     body.innerHTML = `${addBtn ? `<div class="gc-add-row"><button class="btn btn-sm btn-primary" id="gc-addbtn">${esc(addBtn.label)}</button></div>` : ''}
-      <input class="gc-search" placeholder="${esc(ph)}" value="${esc(q)}">
+      <input class="gc-search" type="search" placeholder="${esc(ph)}" value="${esc(q)}">
       <div class="table-wrap" style="box-shadow:none"><table><tbody>${rows}</tbody></table></div>
       <div class="gc-pager"><button data-pg="prev" ${page <= 0 ? 'disabled' : ''}>‹</button><span>página ${page + 1}/${pages} · ${filt.length}</span><button data-pg="next" ${page >= pages - 1 ? 'disabled' : ''}>›</button></div>`;
     const qi = body.querySelector('.gc-search');

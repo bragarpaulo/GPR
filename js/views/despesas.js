@@ -100,7 +100,7 @@ function renderConsolidado(container, s) {
     ${pageHead('Lançamento de Despesas', 'Visão consolidada — somente leitura. Cada linha tem a cor da empresa; selecione 1 empresa no topo para editar.')}
     ${statusFilterChips(LEGENDA, filtro.status || [])}
     <div class="toolbar">
-      <input id="f-busca" class="search-grow" type="text" placeholder="🔎 Buscar…" value="${esc(filtro.busca)}">
+      <input id="f-busca" class="search-grow" type="search" placeholder="🔎 Buscar…" value="${esc(filtro.busca)}">
       <div class="spacer"></div>
       <span class="hint lc-hint">${linhas.length} linha(s) · Total ${fmtBRL0(total)}</span>
     </div>
@@ -146,7 +146,7 @@ export function render(container) {
     <div class="toolbar">
       ${addBtn}
       <button class="btn btn-sm" data-action="del-sel">🗑 Excluir selecionadas</button>
-      <input id="f-busca" class="search-grow" type="text" placeholder="🔎 Buscar em qualquer coluna…" value="${esc(filtro.busca)}">
+      <input id="f-busca" class="search-grow" type="search" placeholder="🔎 Buscar em qualquer coluna…" value="${esc(filtro.busca)}">
       ${catChip}
       <div class="spacer"></div>
       <span class="hint lc-hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
