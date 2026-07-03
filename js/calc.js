@@ -115,8 +115,12 @@ export function calcFluxo(s) {
   const prevOut = new Set([STATUS_DESPESA.APAGAR, STATUS_DESPESA.HOJE, STATUS_DESPESA.ATRASADO]);
   const entradasPrev = cols.map(k => vd.reduce((a, v) => a + (prevIn.has(v.status) && v.mesAnoRecebimento === k ? num(v.valor) : 0), 0));
   const saidasPrev = cols.map(k => dd.reduce((a, d) => a + (prevOut.has(d.status) && d.mesVencimento === k ? num(d.valor) : 0), 0));
+  // A VENCER (sem as atrasadas): visão conservadora do gestor — venda vencida não conta como
+  // "a receber" (vai p/ Inadimplência); a pagar vencida CONTINUA devida (segue em saidasPrev).
+  const aVencerIn = new Set([STATUS_VENDA.PREVISTO, STATUS_VENDA.HOJE]);
+  const entradasAVencer = cols.map(k => vd.reduce((a, v) => a + (aVencerIn.has(v.status) && v.mesAnoRecebimento === k ? num(v.valor) : 0), 0));
   const saldoPrevisto = cols.map((_, i) => saldoConta[i] + entradasPrev[i] - saidasPrev[i]);
-  return { cols, saldoInicial, entradas, saidas, resultado, saldoConta, entradasPrev, saidasPrev, saldoPrevisto, saldoInicialAno };
+  return { cols, saldoInicial, entradas, saidas, resultado, saldoConta, entradasPrev, entradasAVencer, saidasPrev, saldoPrevisto, saldoInicialAno };
 }
 export function contasReceberPorCanal(s, mesIdx) {
   const ano = anoAtivo(s);
@@ -338,9 +342,11 @@ export function calcDashboard(s) {
   const curY = new Date().getFullYear();
   const idxAtual = ano < curY ? 11 : ano > curY ? 0 : Math.min(new Date().getMonth(), 11);
   const somaDe = (arr, from, to) => arr.slice(from, to).reduce((a, b) => a + b, 0);
-  const contasReceberMes = somaDe(fluxo.entradasPrev, 0, idxAtual + 1);    // vencidas (atrasadas) + a vencer no mês
-  const contasReceberProx = somaDe(fluxo.entradasPrev, idxAtual + 1, 12);  // a vencer nos próximos meses
-  const contasPagarMes = somaDe(fluxo.saidasPrev, 0, idxAtual + 1);        // vencidas + a vencer no mês
+  // A RECEBER: só o A VENCER (venda vencida = inadimplência, o gestor já conta como perdido).
+  // A PAGAR: inclui as vencidas (continuam devidas).
+  const contasReceberMes = somaDe(fluxo.entradasAVencer, 0, idxAtual + 1);   // a vencer no mês
+  const contasReceberProx = somaDe(fluxo.entradasAVencer, idxAtual + 1, 12); // a vencer nos próximos meses
+  const contasPagarMes = somaDe(fluxo.saidasPrev, 0, idxAtual + 1);          // vencidas + a vencer no mês
   const contasPagarTotal = somaDe(fluxo.saidasPrev, 0, 12);
   const contasPagarProx = contasPagarTotal - contasPagarMes;
   // Saldo Provisionado: Saldo atual +/- previstos (mês atual e próximos).

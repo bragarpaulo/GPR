@@ -18,11 +18,11 @@ function rowErro(id) {
   return `<tr data-id="${esc(id || '')}" class="st-bad">
     <td class="col-chk"><input type="checkbox" class="rowchk" value="${esc(id || '')}"></td>
     <td class="col-acoes nowrap"><button class="btn btn-sm btn-icon" title="Excluir linha inconsistente" data-action="rm" data-id="${esc(id || '')}">🗑</button></td>
-    <td colspan="12" class="empty">Linha com dados inconsistentes — clique 🗑 para remover.</td></tr>`;
+    <td colspan="14" class="empty">Linha com dados inconsistentes — clique 🗑 para remover.</td></tr>`;
 }
 function sortKey(l, campo) {
   if (campo === 'valor') return num(l.valor);
-  if (campo === 'mesCompetencia') { const [mm, yy] = String(l.mesCompetencia || '').split('/'); const mi = MESES.indexOf(mm); return (Number(yy) || 0) * 100 + (mi < 0 ? 0 : mi); }
+  if (campo === 'mesCompetencia' || campo === 'mesVencimento' || campo === 'mesPagamento') { const [mm, yy] = String(l[campo] || '').split('/'); const mi = MESES.indexOf(mm); return (Number(yy) || 0) * 100 + (mi < 0 ? 0 : mi); }
   return String(l[campo] || '');
 }
 const dataValida = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return !!m && +m[1] >= 1900 && +m[1] <= 2999 && +m[2] >= 1 && +m[2] <= 12 && +m[3] >= 1 && +m[3] <= 31; };
@@ -51,6 +51,7 @@ function rowHtml(d, s, compOpts) {
       <td class="col-chk"><input type="checkbox" class="rowchk" value="${d.id}"></td>
       <td class="col-acoes nowrap"><button class="btn btn-sm btn-icon" title="Duplicar" data-action="dup" data-id="${d.id}">⧉</button><button class="btn btn-sm btn-icon" title="Excluir" data-action="rm" data-rmrec data-id="${d.id}">🗑</button></td>
       <td><input type="date" data-id="${d.id}" data-campo="dataVencimento" value="${esc(d.dataVencimento)}"></td>
+      <td class="derived" data-cell="mesVenc">${esc(d.mesVencimento || '')}</td>
       <td><select data-id="${d.id}" data-campo="mesCompetencia">${options(compOpts, d.mesCompetencia, { placeholder: '—' })}</select></td>
       <td><input class="inp-flush" style="min-width:130px" data-id="${d.id}" data-campo="descricao" value="${esc(d.descricao)}"></td>
       <td><select data-id="${d.id}" data-campo="categoriaId" style="min-width:160px">${options(s.categorias, d.categoriaId, { placeholder: '—' })}</select></td>
@@ -60,6 +61,7 @@ function rowHtml(d, s, compOpts) {
       <td><select data-id="${d.id}" data-campo="contaId">${options(s.contas, d.contaId, { placeholder: '—' })}</select></td>
       <td><select data-id="${d.id}" data-campo="formaPagamento">${options(FORMAS_PAGAMENTO.map(f => ({ id: f, nome: f })), d.formaPagamento)}</select></td>
       <td><input type="date" title="Data do pagamento real (preencher = vira Pago)" data-id="${d.id}" data-campo="dataPagamentoReal" value="${esc(d.dataPagamentoReal)}"></td>
+      <td class="derived" data-cell="mesPg">${esc(d.mesPagamento || '')}</td>
       <td data-cell="status">${badgeDespesa(d.status)}</td>
       <td><input class="inp-flush" style="min-width:100px" data-id="${d.id}" data-campo="obs" value="${esc(d.obs)}"></td>
     </tr>`;
@@ -70,7 +72,10 @@ function atualizarDerivada(container, id) {
   const d = despesaDerivada(raw);
   const tr = container.querySelector(`tbody tr[data-id="${CSS.escape(id)}"]`); if (!tr) return;
   tr.className = ROWCLS[d.status] || '';
-  const st = tr.querySelector('[data-cell="status"]'); if (st) st.innerHTML = badgeDespesa(d.status);
+  const put = (cell, html) => { const el = tr.querySelector(`[data-cell="${cell}"]`); if (el) el.innerHTML = html; };
+  put('status', badgeDespesa(d.status));
+  put('mesVenc', esc(d.mesVencimento || ''));
+  put('mesPg', esc(d.mesPagamento || ''));
 }
 
 // Linha só-leitura (consolidado): cada linha leva a COR da empresa.
@@ -115,10 +120,23 @@ function renderConsolidado(container, s) {
   }));
 }
 
+// Filtros por COLUNA (cabeçalho ▾): campo → rótulo + valor da célula (p/ lista de valores únicos).
+const FILTRAVEIS = {
+  mesVencimento: { label: 'Mês Venc.', get: (d) => d.mesVencimento || '' },
+  mesCompetencia: { label: 'Mês Competência', get: (d) => d.mesCompetencia || '' },
+  categoria: { label: 'Categoria', get: (d) => nomeCategoria(d.categoriaId) || '' },
+  fornecedor: { label: 'Recebedor', get: (d) => d.fornecedor || '' },
+  conta: { label: 'Conta', get: (d) => nomeConta(d.contaId) || '' },
+  forma: { label: 'Forma Pgto', get: (d) => d.formaPagamento || '' },
+  mesPagamento: { label: 'Mês Pgto.', get: (d) => d.mesPagamento || '' },
+};
+
 export function render(container) {
   const s = getState();
   if (isAggregated()) return renderConsolidado(container, s);   // 2+ empresas: visão consolidada só-leitura
   const filtro = s.ui.despesasFiltro || { status: [], busca: '', categoria: '' };
+  const cols = filtro.cols || {};
+  const fBtn = (campo) => `<button type="button" class="th-filter ${cols[campo] ? 'on' : ''}" data-colfilter="${campo}" title="Filtrar coluna">▾</button>`;
   const sort = s.ui.despesasSort || { campo: '', dir: 'asc' };
   const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
   const compOpts = chavesAno(anoAtivo(s)).map(k => ({ id: k, nome: k }));
@@ -126,6 +144,7 @@ export function render(container) {
   let linhas = s.despesas.map(d => { try { return despesaDerivada(d); } catch (e) { console.error('Despesa com dados inconsistentes:', d, e); return { ...d, _erro: true }; } });
   linhas = linhas.filter(d => !d.mesCompetencia && !d.dataVencimento ? true : noPeriodoComp(d.mesCompetencia, anos, meses) || (d.dataVencimento && noPeriodoData(d.dataVencimento, anos, meses)));
   if (filtro.categoria) linhas = linhas.filter(d => d.categoriaId === filtro.categoria);
+  for (const [campo, val] of Object.entries(cols)) { const def = FILTRAVEIS[campo]; if (def && val) linhas = linhas.filter(d => def.get(d) === val); }
   if (filtro.status && filtro.status.length) linhas = linhas.filter(d => filtro.status.includes(d.status));
   if (filtro.busca) {
     const q = norm(filtro.busca);
@@ -137,8 +156,9 @@ export function render(container) {
   const arrow = (f) => sort.campo === f ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
   const addBtn = '<button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button>';
   const catChip = filtro.categoria ? `<button class="chip active" data-action="limpar-cat" title="Remover filtro">Categoria: ${esc(nomeCategoria(filtro.categoria))} ✕</button>` : '';
+  const colChips = Object.entries(cols).filter(([c, v]) => FILTRAVEIS[c] && v).map(([c, v]) => `<button class="chip active" data-limpar-col="${c}" title="Remover filtro">${esc(FILTRAVEIS[c].label)}: ${esc(v)} ✕</button>`).join('');
 
-  const rows = linhas.map(d => { try { return d._erro ? rowErro(d.id) : rowHtml(d, s, compOpts); } catch (e) { console.error('Erro ao renderizar despesa:', d, e); return rowErro(d.id); } }).join('') || `<tr class="row-vazia"><td colspan="14" class="empty">Nenhuma despesa no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
+  const rows = linhas.map(d => { try { return d._erro ? rowErro(d.id) : rowHtml(d, s, compOpts); } catch (e) { console.error('Erro ao renderizar despesa:', d, e); return rowErro(d.id); } }).join('') || `<tr class="row-vazia"><td colspan="16" class="empty">Nenhuma despesa no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
 
   container.innerHTML = `
     ${pageHead('Lançamento de Despesas', 'A linha em edição fica destacada e não se reordena enquanto você digita. Preencha "Pago em" e o status vira Pago. Clique no status p/ filtrar; no 🔁 p/ repetir.')}
@@ -147,7 +167,7 @@ export function render(container) {
       ${addBtn}
       <button class="btn btn-sm" data-action="del-sel">🗑 Excluir selecionadas</button>
       <input id="f-busca" class="search-grow" type="search" placeholder="🔎 Buscar em qualquer coluna…" value="${esc(filtro.busca)}">
-      ${catChip}
+      ${catChip}${colChips}
       <div class="spacer"></div>
       <span class="hint lc-hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
     </div>
@@ -157,14 +177,16 @@ export function render(container) {
           <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
           <th class="col-acoes">Ações</th>
           <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th>
-          <th class="sortable" data-sortcol="mesCompetencia">Mês Competência${arrow('mesCompetencia')}</th>
-          <th>Descrição</th><th>Categoria</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th>
-          <th>Parcela</th><th>Recebedor</th><th>Conta</th><th>Forma Pgto</th>
+          <th class="sortable" data-sortcol="mesVencimento">Mês Venc.${arrow('mesVencimento')}${fBtn('mesVencimento')}</th>
+          <th class="sortable" data-sortcol="mesCompetencia">Mês Competência${arrow('mesCompetencia')}${fBtn('mesCompetencia')}</th>
+          <th>Descrição</th><th>Categoria${fBtn('categoria')}</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th>
+          <th>Parcela</th><th>Recebedor${fBtn('fornecedor')}</th><th>Conta${fBtn('conta')}</th><th>Forma Pgto${fBtn('forma')}</th>
           <th class="sortable" data-sortcol="dataPagamentoReal">Pago em${arrow('dataPagamentoReal')}</th>
+          <th class="sortable" data-sortcol="mesPagamento">Mês Pgto.${arrow('mesPagamento')}${fBtn('mesPagamento')}</th>
           <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
         </tr></thead>
         <tbody>${rows}</tbody>
-        <tfoot><tr><td colspan="14">${addBtn}</td></tr></tfoot>
+        <tfoot><tr><td colspan="16">${addBtn}</td></tr></tfoot>
       </table>
     </div>`;
 
@@ -203,6 +225,21 @@ function wire(container, compOpts) {
   container.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') ev.target.blur(); });
 
   container.addEventListener('click', (ev) => {
+    // Filtro por coluna: ▾ no cabeçalho abre a lista de valores únicos da coluna (período atual).
+    const cf = ev.target.closest('[data-colfilter]');
+    if (cf) {
+      ev.stopPropagation();
+      const campo = cf.dataset.colfilter, def = FILTRAVEIS[campo];
+      const st = getState();
+      const anos2 = anosSelecionados(st), meses2 = st.ui.periodoMeses || [];
+      const base = st.despesas.map(despesaDerivada).filter(d => !d.mesCompetencia && !d.dataVencimento ? true : noPeriodoComp(d.mesCompetencia, anos2, meses2) || (d.dataVencimento && noPeriodoData(d.dataVencimento, anos2, meses2)));
+      const vals = [...new Set(base.map(def.get).filter(Boolean))].sort();
+      const aplicar = (v) => { const cur = { ...((st.ui.despesasFiltro || {}).cols || {}) }; if (v == null) delete cur[campo]; else cur[campo] = v; setDespesasFiltro({ cols: cur }); };
+      openChoicePopover(cf, `Filtrar: ${def.label}`, [{ label: '(Todos)', run: () => aplicar(null) }, ...vals.map(v => ({ label: v, run: () => aplicar(v) }))]);
+      return;
+    }
+    const chipCol = ev.target.closest('[data-limpar-col]');
+    if (chipCol) { const cur = { ...((getState().ui.despesasFiltro || {}).cols || {}) }; delete cur[chipCol.dataset.limparCol]; setDespesasFiltro({ cols: cur }); return; }
     const pill = ev.target.closest('[data-statusfilter]');
     if (pill) { const cur = [...((getState().ui.despesasFiltro || {}).status || [])]; const v = pill.dataset.statusfilter; const i = cur.indexOf(v); i >= 0 ? cur.splice(i, 1) : cur.push(v); setDespesasFiltro({ status: cur }); return; }
     const recBtn = ev.target.closest('[data-rec]');

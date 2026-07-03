@@ -37,7 +37,7 @@ function chartHead(titulo, id, nome) {
 export function kpisEconomico(d) {
   return `
     <div class="grid kpis">
-      ${kpi('💰 Receita (Entradas)', fmtBRL0(d.receita), { variant: 'k-green', cls: 'green', route: 'vendas' })}
+      ${kpi('💰 Receita (Faturamento)', fmtBRL0(d.receita), { variant: 'k-green', cls: 'green', route: 'vendas' })}
       ${kpi('💵 Recebido à vista', fmtBRL0(d.aVista), { variant: 'k-blue', route: 'vendas' })}
       ${kpi('⏳ Vendido a prazo', fmtBRL0(d.aPrazo), { variant: 'k-purple', route: 'vendas' })}
       ${kpi('💸 Despesa', fmtBRL0(d.despesaTotal), { variant: 'k-red', cls: 'red', route: 'despesas' })}
@@ -56,7 +56,7 @@ export function kpisCaixaProvisoes(d) {
     <div class="section-title">Provisões</div>
     <div class="grid kpis">
       ${kpi2('🔮 Saldo Provisionado', [['Mês atual', fmtBRL0(d.saldoProvMes)], ['Próximos meses', fmtBRL0(d.saldoProvProx)]], { variant: 'k-purple', route: 'fluxo' })}
-      ${kpi2('📥 Contas a Receber', [['Vencidas + mês', fmtBRL0(d.contasReceberMes)], ['Próximos meses', fmtBRL0(d.contasReceberProx)]], { variant: 'k-blue', route: 'fluxo' })}
+      ${kpi2('📥 Contas a Receber', [['A vencer (mês)', fmtBRL0(d.contasReceberMes)], ['Próximos meses', fmtBRL0(d.contasReceberProx)]], { variant: 'k-blue', route: 'fluxo' })}
       ${kpi2('📤 Contas a Pagar', [['Vencidas + mês', fmtBRL0(d.contasPagarMes)], ['Total', fmtBRL0(d.contasPagarTotal)]], { variant: 'k-red', route: 'fluxo' })}
       ${kpi('⚠️ Inadimplência', fmtBRL0(d.inadimplencia), { variant: 'k-orange', cls: d.inadimplencia > 0 ? 'red' : '', route: 'vendas' })}
     </div>`;

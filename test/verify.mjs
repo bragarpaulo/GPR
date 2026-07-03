@@ -187,6 +187,20 @@ console.log('\n== COMPETÊNCIA NÃO CONTA O FUTURO (dashboard) ==');
     check('Dashboard: despesa de mês futuro NÃO entra na despesa', approx(comFut.despesaTotal, base.despesaTotal));
     check('Dashboard: série de competência corta no mês atual', comFut.serieReceita.length === hj.getMonth() + 1);
     check('Dashboard: mês futuro selecionado explicitamente APARECE', calcDashboard({ ...sFut, ui: { ...sFut.ui, periodoMeses: [hj.getMonth() + 1] } }).receita >= 999999);
+
+    // A RECEBER exclui as VENCIDAS (vão p/ Inadimplência); A PAGAR mantém as vencidas.
+    if (hj.getMonth() > 0) {
+      const sVenc = mk();
+      const mPas = String(hj.getMonth()).padStart(2, '0');   // mês anterior ao atual (1-based)
+      sVenc.vendas.push({ id: 'v-venc', dataVenda: `${anoCur}-${mPas}-10`, dataVencimento: `${anoCur}-${mPas}-10`, valor: 777777, categoriaReceitaId: 'rec_bruta', canalId: '', pedido: '', produto: '', cliente: '', parcela: '', obs: '' });
+      sVenc.despesas.push({ id: 'd-venc', dataVencimento: `${anoCur}-${mPas}-10`, valor: 555555, categoriaId: 'marketing', descricao: '', fornecedor: '', obs: '' });
+      const dv = calcDashboard(sVenc);
+      const db = calcDashboard(mk());
+      check('A Receber: venda VENCIDA não entra (vai p/ inadimplência)', approx(dv.contasReceberMes, db.contasReceberMes));
+      check('Inadimplência inclui a venda vencida', dv.inadimplencia >= 777777);
+      check('A Pagar: despesa VENCIDA continua entrando', approx(dv.contasPagarMes, db.contasPagarMes + 555555));
+      check('Saldo provisionado = saldo + a vencer − a pagar (c/ vencidas)', approx(dv.saldoProvMes, dv.saldoAtual + dv.contasReceberMes - dv.contasPagarMes));
+    }
   } else { console.log('  (dezembro: sem mês futuro no ano — teste pulado)'); }
 }
 

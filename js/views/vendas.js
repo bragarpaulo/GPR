@@ -4,7 +4,7 @@ import { getState, addVenda, duplicarVenda, removerVenda, removerVendas, remover
 import { vendaDerivada } from '../calc.js';
 import { STATUS_VENDA } from '../config.js';
 import { pageHead, options, badgeVenda, moneyInput, fmtMoneyInput, statusFilterChips, attachAutocomplete, openRecPopover, openChoicePopover, wireBusca } from '../ui.js';
-import { esc, num, fmtBRL0, fmtBRL, fmtData, norm, noPeriodo, anosSelecionados } from '../util.js';
+import { esc, num, fmtBRL0, fmtBRL, fmtData, norm, noPeriodo, anosSelecionados, mesAno } from '../util.js';
 import { nomeRecorrencia } from '../recurrence.js';
 
 const ROWCLS = { [STATUS_VENDA.CONCLUIDO]: 'st-ok', [STATUS_VENDA.ATRASADO]: 'st-bad', [STATUS_VENDA.HOJE]: 'st-warn', [STATUS_VENDA.PREVISTO]: 'st-info' };
@@ -104,16 +104,31 @@ function renderConsolidado(container, s) {
   }));
 }
 
+// Filtros por COLUNA (cabeçalho ▾): campo → rótulo + valor da célula (p/ lista de valores únicos).
+const FILTRAVEIS = {
+  mesVenda: { label: 'Mês', get: (v) => v.mesVenda || '' },
+  canal: { label: 'Canal', get: (v) => nomeCanal(v.canalId) || '' },
+  categoria: { label: 'Categoria', get: (v) => nomeReceitaCat(v.categoriaReceitaId) || '' },
+  produto: { label: 'Produto/Pedido', get: (v) => v.produto || '' },
+  cliente: { label: 'Cliente', get: (v) => v.cliente || '' },
+  conta: { label: 'Conta', get: (v) => nomeConta(v.contaId) || '' },
+  mesReceb: { label: 'Mês/Ano Receb.', get: (v) => v.mesAnoRecebimento || '' },
+  mesRecebReal: { label: 'Mês Recebimento', get: (v) => mesAno(v.dataRecebimento) || '' },
+};
+
 export function render(container) {
   const s = getState();
   if (isAggregated()) return renderConsolidado(container, s);   // 2+ empresas: visão consolidada só-leitura
   const filtro = s.ui.vendasFiltro || { status: [], busca: '', canal: '' };
+  const cols = filtro.cols || {};
+  const fBtn = (campo) => `<button type="button" class="th-filter ${cols[campo] ? 'on' : ''}" data-colfilter="${campo}" title="Filtrar coluna">▾</button>`;
   const sort = s.ui.vendasSort || { campo: '', dir: 'asc' };
   const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
 
   let linhas = s.vendas.map(v => { try { return vendaDerivada(v); } catch (e) { console.error('Venda com dados inconsistentes:', v, e); return { ...v, _erro: true }; } });
   linhas = linhas.filter(v => !v.dataVenda || noPeriodo(v.dataVenda, anos, meses));
   if (filtro.canal) linhas = linhas.filter(v => v.canalId === filtro.canal);
+  for (const [campo, val] of Object.entries(cols)) { const def = FILTRAVEIS[campo]; if (def && val) linhas = linhas.filter(v => def.get(v) === val); }
   if (filtro.status && filtro.status.length) linhas = linhas.filter(v => filtro.status.includes(v.status));
   if (filtro.busca) {
     const q = norm(filtro.busca);
@@ -125,6 +140,7 @@ export function render(container) {
   const arrow = (f) => sort.campo === f ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : '';
   const addBtn = '<button class="btn btn-primary btn-sm" data-action="add">+ Adicionar linha</button>';
   const canalChip = filtro.canal ? `<button class="chip active" data-action="limpar-canal" title="Remover filtro">Canal: ${esc(nomeCanal(filtro.canal))} ✕</button>` : '';
+  const colChips = Object.entries(cols).filter(([c, v]) => FILTRAVEIS[c] && v).map(([c, v]) => `<button class="chip active" data-limpar-col="${c}" title="Remover filtro">${esc(FILTRAVEIS[c].label)}: ${esc(v)} ✕</button>`).join('');
 
   const rows = linhas.map(v => { try { return v._erro ? rowErro(v.id) : rowHtml(v, s); } catch (e) { console.error('Erro ao renderizar venda:', v, e); return rowErro(v.id); } }).join('') || `<tr class="row-vazia"><td colspan="17" class="empty">Nenhuma venda no período. Ajuste o ano/mês no topo ou clique em “+ Adicionar linha”.</td></tr>`;
 
@@ -135,7 +151,7 @@ export function render(container) {
       ${addBtn}
       <button class="btn btn-sm" data-action="del-sel">🗑 Excluir selecionadas</button>
       <input id="f-busca" class="search-grow" type="search" placeholder="🔎 Buscar em qualquer coluna…" value="${esc(filtro.busca)}">
-      ${canalChip}
+      ${canalChip}${colChips}
       <div class="spacer"></div>
       <span class="hint lc-hint">${linhas.length} linha(s) · Total ${fmtBRL0(totalValor)}</span>
     </div>
@@ -144,10 +160,10 @@ export function render(container) {
         <thead><tr>
           <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
           <th class="col-acoes">Ações</th>
-          <th class="sortable" data-sortcol="dataVenda">Data da Venda${arrow('dataVenda')}</th><th>Mês</th><th>Nº Pedido</th><th>Canal</th><th>Categoria</th>
-          <th>Produto/Pedido</th><th>Cliente</th><th>Conta</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th><th>Parcela</th>
-          <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th><th>Mês/Ano Receb.</th>
-          <th class="sortable" data-sortcol="dataRecebimento">Data Recebimento${arrow('dataRecebimento')}</th>
+          <th class="sortable" data-sortcol="dataVenda">Data da Venda${arrow('dataVenda')}</th><th>Mês${fBtn('mesVenda')}</th><th>Nº Pedido</th><th>Canal${fBtn('canal')}</th><th>Categoria${fBtn('categoria')}</th>
+          <th>Produto/Pedido${fBtn('produto')}</th><th>Cliente${fBtn('cliente')}</th><th>Conta${fBtn('conta')}</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th><th>Parcela</th>
+          <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th><th>Mês/Ano Receb.${fBtn('mesReceb')}</th>
+          <th class="sortable" data-sortcol="dataRecebimento">Data Recebimento${arrow('dataRecebimento')}${fBtn('mesRecebReal')}</th>
           <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
         </tr></thead>
         <tbody>${rows}</tbody>
@@ -192,6 +208,21 @@ function wire(container) {
   container.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ev.target.tagName === 'INPUT') ev.target.blur(); });
 
   container.addEventListener('click', (ev) => {
+    // Filtro por coluna: ▾ no cabeçalho abre a lista de valores únicos da coluna (período atual).
+    const cf = ev.target.closest('[data-colfilter]');
+    if (cf) {
+      ev.stopPropagation();
+      const campo = cf.dataset.colfilter, def = FILTRAVEIS[campo];
+      const st = getState();
+      const anos2 = anosSelecionados(st), meses2 = st.ui.periodoMeses || [];
+      const base = st.vendas.map(vendaDerivada).filter(v => !v.dataVenda || noPeriodo(v.dataVenda, anos2, meses2));
+      const vals = [...new Set(base.map(def.get).filter(Boolean))].sort();
+      const aplicar = (v) => { const cur = { ...((st.ui.vendasFiltro || {}).cols || {}) }; if (v == null) delete cur[campo]; else cur[campo] = v; setVendasFiltro({ cols: cur }); };
+      openChoicePopover(cf, `Filtrar: ${def.label}`, [{ label: '(Todos)', run: () => aplicar(null) }, ...vals.map(v => ({ label: v, run: () => aplicar(v) }))]);
+      return;
+    }
+    const chipCol = ev.target.closest('[data-limpar-col]');
+    if (chipCol) { const cur = { ...((getState().ui.vendasFiltro || {}).cols || {}) }; delete cur[chipCol.dataset.limparCol]; setVendasFiltro({ cols: cur }); return; }
     const pill = ev.target.closest('[data-statusfilter]');
     if (pill) { const cur = [...((getState().ui.vendasFiltro || {}).status || [])]; const v = pill.dataset.statusfilter; const i = cur.indexOf(v); i >= 0 ? cur.splice(i, 1) : cur.push(v); setVendasFiltro({ status: cur }); return; }
     const recBtn = ev.target.closest('[data-rec]');

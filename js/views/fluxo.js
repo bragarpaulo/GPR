@@ -1,9 +1,9 @@
 // views/fluxo.js — Fluxo de Caixa: resumo, projeção, aging, tabela mensal e anexos.
-import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated, chartLabelOn } from '../store.js';
+import { getState, addPlataforma, setPlataformaCampo, removerPlataforma, setFluxoMesReceber, isAggregated, chartLabelOn, nomeCategoria } from '../store.js';
 import { calcFluxo, contasReceberPorCanal, calcDashboard, calcAging, calcProjecao } from '../calc.js';
 import { MESES } from '../config.js';
 import { pageHead, thMeses, moneyInput, delta, chartDlBtn } from '../ui.js';
-import { esc, num, fmtBRL0, anoAtivo } from '../util.js';
+import { esc, num, fmtBRL0, fmtData, anoAtivo, mesAno, chaveMes } from '../util.js';
 import * as charts from '../charts.js';
 import { kpisCaixaProvisoes, cardRecebPag, cardGeracao } from './resumo.js';
 
@@ -148,7 +148,9 @@ export function render(container) {
     <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
       ${plataformaTabela('disponiveis', '1. Valores disponíveis para saque', 'Ex.: maquininha que já liberou, repasse disponível.')}
       ${plataformaTabela('aReceber', '2. Valores a receber', 'Ex.: cartão que libera em D+30, boletos em aberto.')}
-    </div>`;
+    </div>
+
+    ${realizadasNoMes(s, ano)}`;
 
   charts.linhaProjecao('ch-proj', proj.labels, proj.saldo);
   // Mês a mês até o mês atual (no ano vigente); anos passados/futuros mostram o ano todo.
@@ -161,6 +163,40 @@ export function render(container) {
   charts.recebPag('ch-recpag', d.serieMeses, d.serieRecebimentos, d.seriePagamentos, d.serieGeracaoCaixa, null, chartLabelOn('ch-recpag'));
   charts.lucroChart('ch-geracao', d.serieMeses, d.serieGeracaoCaixa, null, chartLabelOn('ch-geracao'), 'Geração');
   wire(container);
+}
+
+// Contas RECEBIDAS e PAGAS no mês (realizado): mês selecionado no topo (1) ou o mês corrente.
+function realizadasNoMes(s, ano) {
+  const hj = new Date();
+  const sel = s.ui.periodoMeses || [];
+  const idxRef = sel.length === 1 ? sel[0] : (ano === hj.getFullYear() ? Math.min(hj.getMonth(), 11) : 11);
+  const chave = chaveMes(idxRef, ano);
+  const recebidas = s.vendas.filter(v => mesAno(v.dataRecebimento) === chave)
+    .sort((a, b) => String(a.dataRecebimento).localeCompare(String(b.dataRecebimento)));
+  const pagas = s.despesas.filter(d => mesAno(d.dataPagamentoReal) === chave)
+    .sort((a, b) => String(a.dataPagamentoReal).localeCompare(String(b.dataPagamentoReal)));
+  const totR = recebidas.reduce((a, v) => a + num(v.valor), 0);
+  const totP = pagas.reduce((a, d) => a + num(d.valor), 0);
+  const rowsR = recebidas.map(v => `<tr><td class="nowrap">${esc(fmtData(v.dataRecebimento))}</td><td>${esc(v.cliente || v.produto || v.pedido || '—')}</td><td class="num">${fmtBRL0(num(v.valor))}</td></tr>`).join('')
+    || `<tr><td colspan="3" class="empty">Nada recebido em ${esc(chave)}.</td></tr>`;
+  const rowsP = pagas.map(d => `<tr><td class="nowrap">${esc(fmtData(d.dataPagamentoReal))}</td><td>${esc(d.descricao || nomeCategoria(d.categoriaId) || '—')}</td><td class="num">${fmtBRL0(num(d.valor))}</td></tr>`).join('')
+    || `<tr><td colspan="3" class="empty">Nada pago em ${esc(chave)}.</td></tr>`;
+  return `
+    <div class="section-title">✅ Realizado no mês · ${esc(chave)}</div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
+      <div class="card card-pad"><strong>📥 Contas recebidas</strong>
+        <div class="table-wrap" style="box-shadow:none;margin-top:8px"><table>
+          <thead><tr><th>Recebido em</th><th>Cliente / Produto</th><th class="num">Valor</th></tr></thead>
+          <tbody>${rowsR}</tbody>
+          <tfoot><tr class="row-total"><td colspan="2">Total recebido</td><td class="num">${fmtBRL0(totR)}</td></tr></tfoot>
+        </table></div></div>
+      <div class="card card-pad"><strong>📤 Contas pagas</strong>
+        <div class="table-wrap" style="box-shadow:none;margin-top:8px"><table>
+          <thead><tr><th>Pago em</th><th>Descrição</th><th class="num">Valor</th></tr></thead>
+          <tbody>${rowsP}</tbody>
+          <tfoot><tr class="row-total"><td colspan="2">Total pago</td><td class="num">${fmtBRL0(totP)}</td></tr></tfoot>
+        </table></div></div>
+    </div>`;
 }
 
 function wire(container) {
