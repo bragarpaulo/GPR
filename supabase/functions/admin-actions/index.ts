@@ -112,6 +112,14 @@ Deno.serve(async (req: Request) => {
       await fetch(`${URL}/auth/v1/admin/users/${body.member_id}`, { method: 'DELETE', headers: H });   // cascade remove o vínculo
       return json({ ok: true });
     }
+    if (a === 'delete_user') {   // exclui PERMANENTEMENTE um usuário; cascade apaga profile/user_data/assinatura/equipe (todos os FKs têm on delete cascade)
+      if (!admin) return forbid();
+      if (!body.user_id) return json({ error: 'user_id ausente' }, 400);
+      if (body.user_id === uid) return json({ error: 'Você não pode excluir a si mesmo.' }, 400);
+      const r = await fetch(`${URL}/auth/v1/admin/users/${body.user_id}`, { method: 'DELETE', headers: H });
+      if (!r.ok) { const t = await r.text().catch(() => ''); return json({ error: 'falha ao excluir' + (t ? ': ' + t.slice(0, 120) : '') }, 400); }
+      return json({ ok: true });
+    }
     return json({ error: 'ação desconhecida' }, 400);
   } catch (e) { return json({ error: String(e) }, 500); }
 });

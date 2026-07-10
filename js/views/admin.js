@@ -107,7 +107,7 @@ async function loadAssinantes(body) {
     addBtn: { label: '+ Novo assinante', onClick: () => openNovoAssinante(plans, () => loadAssinantes(body)) },
     filtro: (u, q) => (u.email || '').toLowerCase().includes(q) || (u.full_name || '').toLowerCase().includes(q),
     linha: (u) => `<tr class="sub-row" data-uid="${u.id}"><td><strong>${esc(u.full_name || u.email || '(sem e-mail)')}</strong><div class="hint">${esc(u.email || '')} · ${esc(u.sub ? stPt(u.sub.status) : 'sem assinatura')}</div></td><td style="text-align:right"><button class="btn btn-sm btn-primary" data-edit="${u.id}">Editar</button></td></tr>`,
-    wire: (b) => b.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => { const u = subs.find(x => x.id === btn.dataset.edit); openSubscriber(u); }),
+    wire: (b) => b.querySelectorAll('[data-edit]').forEach(btn => btn.onclick = () => { const u = subs.find(x => x.id === btn.dataset.edit); openSubscriber(u, () => loadAssinantes(body)); }),
   });
 }
 // Cria assinante e já vincula plano + status. "preencher no 1º login" deixa nome/setor/nicho/Instagram
@@ -136,7 +136,7 @@ function openNovoAssinante(plans, done) {
   }, 'Criar assinante');
 }
 
-function openSubscriber(u) {
+function openSubscriber(u, done) {
   openModal(`🧑‍💼 ${u.full_name || u.email || 'Assinante'}`, async (body) => {
     const plans = await cloud.adminListPlans();
     const planOpts = planOptsFn(plans);
@@ -163,7 +163,12 @@ function openSubscriber(u) {
           <div class="toolbar" style="gap:6px;margin-top:6px"><input id="sb-mem-email" type="email" placeholder="e-mail do membro" style="width:200px"><input id="sb-mem-nome" type="text" placeholder="nome"><button class="btn btn-sm" id="sb-add-mem">+ Adicionar</button></div></div>
         <div class="sub-sec"><div class="ig-sub">IA no WhatsApp <span class="hint">· ${uso.i + uso.o} tokens</span></div>
           <div class="table-wrap" style="box-shadow:none"><table><thead><tr><th>Número (com DDI)</th><th></th></tr></thead><tbody>${waNums.map(w => `<tr><td>${esc(w.phone)}</td><td><button class="btn btn-sm" data-rmwa="${esc(w.phone)}">Remover</button></td></tr>`).join('') || '<tr><td colspan="2" class="empty">Sem números.</td></tr>'}</tbody></table></div>
-          <div class="toolbar" style="gap:6px;margin-top:6px"><input id="sb-wa" type="text" placeholder="5531999998888" style="width:170px"><button class="btn btn-sm" id="sb-add-wa">+ Autorizar</button></div></div>`;
+          <div class="toolbar" style="gap:6px;margin-top:6px"><input id="sb-wa" type="text" placeholder="5531999998888" style="width:170px"><button class="btn btn-sm" id="sb-add-wa">+ Autorizar</button></div></div>
+        <div class="sub-sec" style="border:1px solid #FCA5A5;background:rgba(220,38,38,.05);border-radius:10px;padding:12px 14px;margin-top:8px">
+          <div class="ig-sub" style="color:#DC2626">⚠️ Zona de perigo</div>
+          <p class="hint" style="margin:4px 0 10px">Excluir apaga <b>permanentemente</b> o login, todos os dados financeiros, a assinatura e a equipe deste usuário. <b>Não dá para desfazer.</b></p>
+          <button class="btn btn-sm" id="sb-delete" style="background:#DC2626;color:#fff;border-color:#DC2626">🗑️ Excluir usuário permanentemente</button>
+          <span id="sb-del-out" class="hint" style="margin-left:8px"></span></div>`;
       // Dados & login
       body.querySelector('#sb-save-dados').onclick = async () => {
         const btn = body.querySelector('#sb-save-dados'); const novoLogin = body.querySelector('#sb-login').value.trim();
@@ -187,6 +192,17 @@ function openSubscriber(u) {
       // WhatsApp
       body.querySelectorAll('[data-rmwa]').forEach(b => b.onclick = async () => { await cloud.adminDelWaNumber(b.dataset.rmwa); draw(); });
       body.querySelector('#sb-add-wa').onclick = async () => { const phone = (body.querySelector('#sb-wa').value || '').replace(/\D/g, ''); if (!phone) { alert('Informe o número.'); return; } if (await cloud.adminAddWaNumber(phone, u.id)) draw(); };
+      // Excluir (permanente) — confirmação forte: precisa digitar EXCLUIR.
+      body.querySelector('#sb-delete').onclick = async () => {
+        const quem = u.email || u.full_name || 'este usuário';
+        if (!confirm(`Excluir PERMANENTEMENTE ${quem} e TODOS os seus dados (financeiro, assinatura, equipe)?\n\nEsta ação NÃO pode ser desfeita.`)) return;
+        const t = prompt(`Para confirmar, digite EXCLUIR:`);
+        if ((t || '').trim().toUpperCase() !== 'EXCLUIR') { body.querySelector('#sb-del-out').textContent = 'Cancelado.'; return; }
+        const out = body.querySelector('#sb-del-out'); out.textContent = 'Excluindo…';
+        const r = await cloud.adminDeleteUser(u.id);
+        if (r && r.ok) { body.parentElement.querySelector('.gc-modal-x').click(); if (typeof done === 'function') done(); }
+        else out.textContent = 'Erro: ' + ((r && r.error) || 'falhou');
+      };
     }
     await draw();
   });
@@ -194,7 +210,8 @@ function openSubscriber(u) {
 
 // ---- Usuários do sistema (admins) ----
 async function loadSistema(body) {
-  const admins = (await cloud.adminListUsers()).filter(u => u.is_admin);
+  const [admins, me] = [(await cloud.adminListUsers()).filter(u => u.is_admin), await cloud.currentUser()];
+  const meuId = me && me.id;
   paginar(body, admins, {
     ph: '🔎 Buscar admin…', cols: 2,
     addBtn: { label: '+ Novo admin', onClick: () => openForm('🛡️ Novo admin', [
@@ -207,8 +224,17 @@ async function loadSistema(body) {
       return { error: (r && r.error) || 'Erro ao criar admin.' };
     }, 'Criar admin') },
     filtro: (u, q) => (u.email || '').toLowerCase().includes(q),
-    linha: (u) => `<tr><td>${esc(u.email || u.id)} <span class="emp-tag">admin</span></td><td style="text-align:right"><button class="btn btn-sm" data-demote="${u.id}">Remover admin</button></td></tr>`,
-    wire: (b) => b.querySelectorAll('[data-demote]').forEach(btn => btn.onclick = async () => { if (confirm('Tirar o admin deste usuário?')) { await cloud.adminSetAdmin(btn.dataset.demote, false); loadSistema(body); } }),
+    linha: (u) => `<tr><td>${esc(u.email || u.id)} <span class="emp-tag">admin</span>${u.id === meuId ? ' <span class="hint">(você)</span>' : ''}</td><td style="text-align:right;white-space:nowrap"><button class="btn btn-sm" data-demote="${u.id}">Remover admin</button>${u.id === meuId ? '' : ` <button class="btn btn-sm" data-del="${u.id}" style="background:#DC2626;color:#fff;border-color:#DC2626">Excluir</button>`}</td></tr>`,
+    wire: (b) => {
+      b.querySelectorAll('[data-demote]').forEach(btn => btn.onclick = async () => { if (confirm('Tirar o admin deste usuário?')) { await cloud.adminSetAdmin(btn.dataset.demote, false); loadSistema(body); } });
+      b.querySelectorAll('[data-del]').forEach(btn => btn.onclick = async () => {
+        const u = admins.find(x => x.id === btn.dataset.del); const quem = (u && (u.email || u.id)) || 'este admin';
+        if (!confirm(`Excluir PERMANENTEMENTE ${quem} e todos os seus dados? Não pode ser desfeito.`)) return;
+        if ((prompt('Digite EXCLUIR para confirmar:') || '').trim().toUpperCase() !== 'EXCLUIR') return;
+        const r = await cloud.adminDeleteUser(btn.dataset.del);
+        if (r && r.ok) loadSistema(body); else alert('Erro: ' + ((r && r.error) || 'falhou'));
+      });
+    },
   });
 }
 

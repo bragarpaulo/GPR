@@ -170,6 +170,7 @@ export async function adminSetUserEmail(userId, email) { return callAdmin('set_e
 export async function adminSetUserPassword(userId, password) { return callAdmin('set_password', { user_id: userId, password }); }
 export async function adminGenPassword(userId) { return callAdmin('gen_password', { user_id: userId }); }
 export async function adminCreateAdmin(email, password) { return callAdmin('create_admin', { email, password }); }
+export async function adminDeleteUser(userId) { return callAdmin('delete_user', { user_id: userId }); }   // exclui PERMANENTEMENTE (cascade apaga dados/assinatura/equipe)
 // Cria um ASSINANTE e, opcionalmente, já vincula um plano + status (ex.: grátis com status 'active' = acesso total).
 export async function adminCreateSubscriber(email, password, nome, planCode, status, extras = {}) {
   const r = await callAdmin('create_user', { email, password, nome, setor: extras.setor, instagram: extras.instagram, niche: extras.niche });
