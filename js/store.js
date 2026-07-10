@@ -570,7 +570,7 @@ export function reordenarContas(fromId, toId) { update(s => moveById(s.contas, f
 
 // ---- Empresa / Orçamento / Plataformas / UI ------------------------------
 export function setEmpresaCampo(campo, valor) { update(s => { s.empresa[campo] = valor; }); }
-export function setOrcamento(ano, catId, mesIdx, valor) { update(s => { if (!s.orcamento[ano]) s.orcamento[ano] = {}; if (!Array.isArray(s.orcamento[ano][catId])) s.orcamento[ano][catId] = Array(12).fill(0); s.orcamento[ano][catId][mesIdx] = valor; }); }
+export function setOrcamento(ano, catId, mesIdx, valor, opts) { update(s => { if (!s.orcamento[ano]) s.orcamento[ano] = {}; if (!Array.isArray(s.orcamento[ano][catId])) s.orcamento[ano][catId] = Array(12).fill(0); s.orcamento[ano][catId][mesIdx] = valor; }, opts); }
 export function setPeriodoMeses(arr) { updateUI(s => { s.ui.periodoMeses = Array.from(arr).map(Number); }); }
 export function setUiCampo(campo, valor) { updateUI(s => { s.ui[campo] = valor; }); }
 // Mostrar/ocultar rótulos de valor (barras) ou % (pizza) por gráfico (id do canvas).

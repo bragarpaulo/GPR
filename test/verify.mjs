@@ -3,7 +3,7 @@
 import { demoData } from '../js/seed.js';
 import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, STATUS_VENDA, ABAS } from '../js/config.js';
 import {
-  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave,
+  calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, calcControleMetas, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave,
 } from '../js/calc.js';
 import { expandirRecorrencia } from '../js/recurrence.js';
 import { anosDisponiveis, noPeriodo, anosSelecionados } from '../js/util.js';
@@ -202,6 +202,26 @@ console.log('\n== COMPETÊNCIA NÃO CONTA O FUTURO (dashboard) ==');
       check('Saldo provisionado = saldo + a vencer − a pagar (c/ vencidas)', approx(dv.saldoProvMes, dv.saldoAtual + dv.contasReceberMes - dv.contasPagarMes));
     }
   } else { console.log('  (dezembro: sem mês futuro no ano — teste pulado)'); }
+}
+
+console.log('\n== CONTROLE DE METAS: COMPETÊNCIA NÃO CONTA O FUTURO ==');
+{
+  const hj = new Date();
+  if (hj.getMonth() < 11) {
+    const anoCur = hj.getFullYear();
+    const mk = () => ({ ...demoData(anoCur), categorias: DEFAULT_CATEGORIES.map(c => ({ ...c })), receitaCategorias: DEFAULT_RECEITA_CATEGORIES.map(c => ({ ...c })), ui: { anoAtivo: anoCur, periodoMeses: [] } });
+    const sFut = mk();
+    const mFut = String(hj.getMonth() + 2).padStart(2, '0');   // mês seguinte ao atual
+    sFut.vendas.push({ id: 'v-fut', dataVenda: `${anoCur}-${mFut}-15`, dataVencimento: `${anoCur}-${mFut}-15`, valor: 999999, categoriaReceitaId: 'rec_bruta', canalId: sFut.canais[0]?.id || '', pedido: '', produto: '', cliente: '', parcela: '', obs: '' });
+    sFut.despesas.push({ id: 'd-fut', dataVencimento: `${anoCur}-${mFut}-15`, mesCompetencia: `${['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][hj.getMonth() + 1]}/${anoCur}`, valor: 888888, categoriaId: 'marketing', descricao: '', fornecedor: '', obs: '' });
+    const cmBase = calcControleMetas(mk());
+    const cmFut = calcControleMetas(sFut);
+    check('Metas: despesa de mês futuro NÃO entra no realizado', approx(cmFut.despesas.real, cmBase.despesas.real));
+    check('Metas: lucro de mês futuro NÃO distorce', approx(cmFut.lucro.real, cmBase.lucro.real));
+    check('Metas: receita de mês futuro NÃO entra', approx(cmFut.receita.real, cmBase.receita.real));
+    const cmSel = calcControleMetas({ ...sFut, ui: { ...sFut.ui, periodoMeses: [hj.getMonth() + 1] } });
+    check('Metas: mês futuro selecionado explicitamente APARECE', cmSel.receita.real >= 999999 || cmSel.despesas.real >= 888888);
+  } else { console.log('  (dezembro: teste pulado)'); }
 }
 
 console.log('\n== MENU: ORDEM E NOMES DAS ABAS ==');

@@ -263,6 +263,7 @@ function renderView() {
   const scEl = document.scrollingElement || document.documentElement;
   const sc = scEl.scrollTop;
   const fsc = contentEl.querySelector('.tbl-frozen')?.scrollTop ?? 0;
+  const hsc = contentEl.querySelector('.tbl-wide')?.scrollLeft ?? 0;   // scroll horizontal (grade larga: Orçamento etc.)
   const root = document.createElement('div');
   if (isAggregated()) {
     const b = document.createElement('div');
@@ -289,7 +290,10 @@ function renderView() {
   renderTopbar();
   renderPeriodBar(route);
   scEl.scrollTop = sameRoute ? sc : 0;
-  if (sameRoute) { const fz = contentEl.querySelector('.tbl-frozen'); if (fz) fz.scrollTop = fsc; }
+  if (sameRoute) {
+    const fz = contentEl.querySelector('.tbl-frozen'); if (fz) fz.scrollTop = fsc;
+    const tw = contentEl.querySelector('.tbl-wide'); if (tw && hsc) tw.scrollLeft = hsc;
+  }
   lastRoute = route;
 }
 

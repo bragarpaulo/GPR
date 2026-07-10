@@ -122,13 +122,20 @@ function renderConsolidado(container, s) {
 
 // Filtros por COLUNA (cabeçalho ▾): campo → rótulo + valor da célula (p/ lista de valores únicos).
 const FILTRAVEIS = {
+  vencimento: { label: 'Vencimento', get: (d) => fmtData(d.dataVencimento) || '' },
   mesVencimento: { label: 'Mês Venc.', get: (d) => d.mesVencimento || '' },
   mesCompetencia: { label: 'Mês Competência', get: (d) => d.mesCompetencia || '' },
+  descricao: { label: 'Descrição', get: (d) => d.descricao || '' },
   categoria: { label: 'Categoria', get: (d) => nomeCategoria(d.categoriaId) || '' },
+  valor: { label: 'Valor', get: (d) => fmtBRL0(num(d.valor)) },
+  parcela: { label: 'Parcela', get: (d) => d.parcela || '' },
   fornecedor: { label: 'Recebedor', get: (d) => d.fornecedor || '' },
   conta: { label: 'Conta', get: (d) => nomeConta(d.contaId) || '' },
   forma: { label: 'Forma Pgto', get: (d) => d.formaPagamento || '' },
+  pagoEm: { label: 'Pago em', get: (d) => fmtData(d.dataPagamentoReal) || '' },
   mesPagamento: { label: 'Mês Pgto.', get: (d) => d.mesPagamento || '' },
+  status: { label: 'Status', get: (d) => d.status || '' },
+  obs: { label: 'Obs', get: (d) => d.obs || '' },
 };
 
 export function render(container) {
@@ -176,14 +183,14 @@ export function render(container) {
         <thead><tr>
           <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
           <th class="col-acoes">Ações</th>
-          <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th>
+          <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}${fBtn('vencimento')}</th>
           <th class="sortable" data-sortcol="mesVencimento">Mês Venc.${arrow('mesVencimento')}${fBtn('mesVencimento')}</th>
           <th class="sortable" data-sortcol="mesCompetencia">Mês Competência${arrow('mesCompetencia')}${fBtn('mesCompetencia')}</th>
-          <th>Descrição</th><th>Categoria${fBtn('categoria')}</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th>
-          <th>Parcela</th><th>Recebedor${fBtn('fornecedor')}</th><th>Conta${fBtn('conta')}</th><th>Forma Pgto${fBtn('forma')}</th>
-          <th class="sortable" data-sortcol="dataPagamentoReal">Pago em${arrow('dataPagamentoReal')}</th>
+          <th>Descrição${fBtn('descricao')}</th><th>Categoria${fBtn('categoria')}</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}${fBtn('valor')}</th>
+          <th>Parcela${fBtn('parcela')}</th><th>Recebedor${fBtn('fornecedor')}</th><th>Conta${fBtn('conta')}</th><th>Forma Pgto${fBtn('forma')}</th>
+          <th class="sortable" data-sortcol="dataPagamentoReal">Pago em${arrow('dataPagamentoReal')}${fBtn('pagoEm')}</th>
           <th class="sortable" data-sortcol="mesPagamento">Mês Pgto.${arrow('mesPagamento')}${fBtn('mesPagamento')}</th>
-          <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
+          <th class="sortable" data-sortcol="status">Status${arrow('status')}${fBtn('status')}</th><th>Obs${fBtn('obs')}</th>
         </tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td colspan="16">${addBtn}</td></tr></tfoot>

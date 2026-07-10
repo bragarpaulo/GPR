@@ -2,6 +2,14 @@
 import { MESES, STATUS_VENDA, STATUS_DESPESA } from './config.js';
 import { num, mesAno, hoje, parseISO, chaveMes, chavesAno, anoAtivo, anosSelecionados, mesesDecorridos, metaArr, orcAno } from './util.js';
 
+// COMPETÊNCIA NÃO CONTA O FUTURO: quantos meses considerar quando é o ANO CORRENTE.
+// Ano passado/futuro = 12 (o ano todo); ano corrente = até o mês atual (inclusive).
+// Provisões de meses futuros não devem inflar receita/despesa/lucro na visão de competência.
+function cutCompDe(ano) {
+  const hj = new Date();
+  return ano < hj.getFullYear() ? 12 : ano > hj.getFullYear() ? 12 : Math.min(hj.getMonth(), 11) + 1;
+}
+
 // ===== Campos derivados ===================================================
 export function statusVenda(v) {
   const venc = v.dataVencimento, pg = v.dataRecebimento;
@@ -176,7 +184,9 @@ export function calcMetaxReal(s) {
   const ano = anoAtivo(s);
   const cols = chavesAno(ano);
   const elapsed = mesesDecorridos(ano);
-  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [...Array(12).keys()];
+  // Competência não conta o futuro: sem mês selecionado, no ano corrente soma só até o mês atual.
+  const cutComp = cutCompDe(ano);
+  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [...Array(cutComp).keys()];
   const vd = vendasDerivadas(s);
   const sumYTD = (arr) => arr.slice(0, elapsed).reduce((a, b) => a + (+b || 0), 0);
   const sumSel = (arr) => sel.reduce((a, i) => a + (+arr[i] || 0), 0);
@@ -192,8 +202,11 @@ export function calcMetaxReal(s) {
   });
   const totalMetaYTD = canais.reduce((a, c) => a + c.metaYTD, 0);
   const totalRealYTD = canais.reduce((a, c) => a + c.realYTD, 0);
+  const semSel = !(s.ui.periodoMeses && s.ui.periodoMeses.length);
   const todoAno = sel.length === 12;
-  const mesLabel = todoAno ? `ano ${ano}` : sel.length === 1 ? `${MESES[sel[0]]}/${ano}` : `${MESES[sel[0]]}–${MESES[sel[sel.length - 1]]}/${ano}`;
+  const mesLabel = todoAno ? `ano ${ano}`
+    : (semSel && cutComp < 12) ? `ano ${ano} · até ${MESES[cutComp - 1]}`
+    : sel.length === 1 ? `${MESES[sel[0]]}/${ano}` : `${MESES[sel[0]]}–${MESES[sel[sel.length - 1]]}/${ano}`;
   return { canais, elapsed, sel, mesLabel, periodoTodoAno: todoAno, totalMetaYTD, totalRealYTD, pctYTD: totalMetaYTD ? totalRealYTD / totalMetaYTD : '' };
 }
 
@@ -201,8 +214,9 @@ export function calcMetaxReal(s) {
 export function calcControleMetas(s) {
   const ano = anoAtivo(s);
   const elapsed = mesesDecorridos(ano);
-  // Mesmo filtro de meses do cabeçalho (mês selecionado ou ano inteiro).
-  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [...Array(12).keys()];
+  // Filtro de meses do cabeçalho; sem mês selecionado no ano corrente, competência corta no mês atual.
+  const cutComp = cutCompDe(ano);
+  const sel = (s.ui.periodoMeses && s.ui.periodoMeses.length) ? [...s.ui.periodoMeses].sort((a, b) => a - b) : [...Array(cutComp).keys()];
   const sumSel = (arr) => sel.reduce((a, i) => a + (+arr[i] || 0), 0);
   const mx = calcMetaxReal(s);
   const orc = calcOrcamento(s);
@@ -314,8 +328,7 @@ export function calcDashboard(s) {
   // COMPETÊNCIA NÃO CONTA O FUTURO: lançamentos provisionados de meses futuros distorciam
   // receita/despesa/lucro. No ano corrente, sem mês selecionado, soma só até o MÊS ATUAL
   // (inclusive). Selecionar um mês futuro explicitamente continua mostrando o mês escolhido.
-  const hj = new Date();
-  const cutComp = ano < hj.getFullYear() ? 12 : ano > hj.getFullYear() ? 12 : Math.min(hj.getMonth(), 11) + 1;
+  const cutComp = cutCompDe(ano);
   const todos = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
   const selExplicita = !!(s.ui.periodoMeses && s.ui.periodoMeses.length);
   const meses = selExplicita ? [...s.ui.periodoMeses].sort((a, b) => a - b) : todos.slice(0, cutComp);

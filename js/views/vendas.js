@@ -106,14 +106,21 @@ function renderConsolidado(container, s) {
 
 // Filtros por COLUNA (cabeçalho ▾): campo → rótulo + valor da célula (p/ lista de valores únicos).
 const FILTRAVEIS = {
+  dataVenda: { label: 'Data da Venda', get: (v) => fmtData(v.dataVenda) || '' },
   mesVenda: { label: 'Mês', get: (v) => v.mesVenda || '' },
+  pedido: { label: 'Nº Pedido', get: (v) => v.pedido || '' },
   canal: { label: 'Canal', get: (v) => nomeCanal(v.canalId) || '' },
   categoria: { label: 'Categoria', get: (v) => nomeReceitaCat(v.categoriaReceitaId) || '' },
   produto: { label: 'Produto/Pedido', get: (v) => v.produto || '' },
   cliente: { label: 'Cliente', get: (v) => v.cliente || '' },
   conta: { label: 'Conta', get: (v) => nomeConta(v.contaId) || '' },
+  valor: { label: 'Valor', get: (v) => fmtBRL0(num(v.valor)) },
+  parcela: { label: 'Parcela', get: (v) => v.parcela || '' },
+  vencimento: { label: 'Vencimento', get: (v) => fmtData(v.dataVencimento) || '' },
   mesReceb: { label: 'Mês/Ano Receb.', get: (v) => v.mesAnoRecebimento || '' },
   mesRecebReal: { label: 'Mês Recebimento', get: (v) => mesAno(v.dataRecebimento) || '' },
+  status: { label: 'Status', get: (v) => v.status || '' },
+  obs: { label: 'Obs', get: (v) => v.obs || '' },
 };
 
 export function render(container) {
@@ -160,11 +167,11 @@ export function render(container) {
         <thead><tr>
           <th class="col-chk"><input type="checkbox" class="chk-all" title="Selecionar todas"></th>
           <th class="col-acoes">Ações</th>
-          <th class="sortable" data-sortcol="dataVenda">Data da Venda${arrow('dataVenda')}</th><th>Mês${fBtn('mesVenda')}</th><th>Nº Pedido</th><th>Canal${fBtn('canal')}</th><th>Categoria${fBtn('categoria')}</th>
-          <th>Produto/Pedido${fBtn('produto')}</th><th>Cliente${fBtn('cliente')}</th><th>Conta${fBtn('conta')}</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}</th><th>Parcela</th>
-          <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}</th><th>Mês/Ano Receb.${fBtn('mesReceb')}</th>
+          <th class="sortable" data-sortcol="dataVenda">Data da Venda${arrow('dataVenda')}${fBtn('dataVenda')}</th><th>Mês${fBtn('mesVenda')}</th><th>Nº Pedido${fBtn('pedido')}</th><th>Canal${fBtn('canal')}</th><th>Categoria${fBtn('categoria')}</th>
+          <th>Produto/Pedido${fBtn('produto')}</th><th>Cliente${fBtn('cliente')}</th><th>Conta${fBtn('conta')}</th><th class="num sortable" data-sortcol="valor">Valor${arrow('valor')}${fBtn('valor')}</th><th>Parcela${fBtn('parcela')}</th>
+          <th class="sortable" data-sortcol="dataVencimento">Vencimento${arrow('dataVencimento')}${fBtn('vencimento')}</th><th>Mês/Ano Receb.${fBtn('mesReceb')}</th>
           <th class="sortable" data-sortcol="dataRecebimento">Data Recebimento${arrow('dataRecebimento')}${fBtn('mesRecebReal')}</th>
-          <th class="sortable" data-sortcol="status">Status${arrow('status')}</th><th>Obs</th>
+          <th class="sortable" data-sortcol="status">Status${arrow('status')}${fBtn('status')}</th><th>Obs${fBtn('obs')}</th>
         </tr></thead>
         <tbody>${rows}</tbody>
         <tfoot><tr><td colspan="17">${addBtn}</td></tr></tfoot>
