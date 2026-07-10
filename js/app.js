@@ -461,6 +461,11 @@ async function bootApp() {
   if (t.version && !t.accepted) { renderTermos(t); return; }
   if (!prof || !prof.full_name) { renderPerfil(prof || {}); return; }   // onboarding: nome/setor/instagram
   _bootedUid = u.id; _appReady = true;
+  // P4: carrega os dados (user_data) EM PARALELO com a checagem de acesso — ambos só dependem de
+  // meu_dono (cacheado). Poupa ~1 round-trip. cloudLoad LANÇA em erro de rede → catch devolve
+  // undefined (≠ null=sem-linha) para NÃO sobrescrever dados reais com uma empresa em branco.
+  await cloud.getMeuDono();
+  const remoteP = cloud.cloudLoad().catch((e) => { console.warn('[boot] cloudLoad:', e); return undefined; });
   const acc = await cloud.getMyAccess(prof);    // reusa o prof já buscado (admin? assinante? demo?)
   _isAdmin = acc.admin;
   _isOwner = !acc.admin && !acc.demo && !acc.readOnly && ((await cloud.getMeuDono()) === u.id);   // dono ativo (não membro)
@@ -473,7 +478,8 @@ async function bootApp() {
     return;
   }
   store.setAccess(acc);                    // assinante/cancelado: aplica limite/trava
-  await initCloud();                       // carrega os dados DO usuário (user_data)
+  const remote = await remoteP;            // dados já vieram em paralelo
+  if (remote !== undefined) store.initCloudWith(remote);   // objeto→aplica; null→semeia; undefined(erro)→mantém local
   store.aplicarPeriodoVigente();
   renderView();
   maybeOfferLegado(u.id);                  // banner não-bloqueante (1× por usuário)

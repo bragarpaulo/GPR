@@ -275,6 +275,17 @@ export async function initCloud() {
     return true;
   } catch (e) { console.warn('[cloud] init (mantém local, não sobrescreve):', e); return false; }
 }
+// Aplica um `remote` JÁ buscado (o boot busca user_data EM PARALELO com getMyAccess — P4). Contrato:
+//   objeto com companies → aplica; null (1ª vez, sem linha) → semeia; o boot NÃO chama com erro (undefined).
+export function initCloudWith(remote) {
+  if (!cloudEnabled()) return false;
+  try {
+    if (remote && Array.isArray(remote.companies) && remote.companies.length) aplicarRemoto(remote);
+    else cloudSave(root);   // linha ausente (1º acesso) → semeia o estado inicial
+    cloudSubscribe((remoteData) => { if (Date.now() - _lastLocalSave < 2000) return; aplicarRemoto(remoteData); });
+    return true;
+  } catch (e) { console.warn('[cloud] initWith:', e); return false; }
+}
 export { cloudEnabled };
 
 // ---- Empresas ------------------------------------------------------------
