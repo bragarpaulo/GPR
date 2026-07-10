@@ -26,8 +26,7 @@ import * as orcamento from './views/orcamento.js';
 import * as planxreal from './views/planxreal.js';
 import * as metaxreal from './views/metaxreal.js';
 import * as metas from './views/metas.js';
-import * as admin from './views/admin.js';
-import * as equipe from './views/equipe.js';
+// admin (34 KB) e equipe são LAZY (P6): raros e privilegiados → saem do boot de todo usuário.
 
 // --- Segurança/bootstrap (client), antes de qualquer render ---
 // Frame-buster: bloqueia clickjacking onde não há header (GitHub Pages). No Cloudflare o _headers já
@@ -38,7 +37,17 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().the
 // Seleciona o texto ao focar um input de moeda (era onfocus inline; virou delegado p/ CSP estrita).
 document.addEventListener('focusin', (e) => { const t = e.target; if (t && t.classList && t.classList.contains('money')) t.select(); });
 
-const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas, admin, equipe };
+const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas };
+// P6: views privilegiadas carregadas sob demanda (import dinâmico), cacheadas após o 1º acesso.
+const LAZY_VIEWS = { admin: () => import('./views/admin.js'), equipe: () => import('./views/equipe.js') };
+const _lazyMod = {};
+const ROUTE_SET = new Set([...Object.keys(VIEWS), ...Object.keys(LAZY_VIEWS)]);
+async function resolveView(route) {
+  if (VIEWS[route]) return VIEWS[route];
+  if (_lazyMod[route]) return _lazyMod[route];
+  if (LAZY_VIEWS[route]) { try { _lazyMod[route] = await LAZY_VIEWS[route](); return _lazyMod[route]; } catch (e) { console.error('[lazy view]', route, e); } }
+  return VIEWS.inicio;
+}
 const ADMIN_ICO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 4v5c0 4.4-3.1 7.6-8 9-4.9-1.4-8-4.6-8-9V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>`;
 const EQUIPE_ICO = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
 
@@ -219,7 +228,7 @@ function buildNav() {
 }
 function currentRoute() {
   const h = (location.hash || '').replace('#', '');
-  if (!VIEWS[h]) return 'inicio';
+  if (!ROUTE_SET.has(h)) return 'inicio';
   // Segurança: rotas privilegiadas não podem ser abertas digitando o hash na URL.
   // O gate real dos DADOS é a RLS no Supabase; isto evita renderizar a TELA a quem não é do público.
   if (h === 'admin' && !_isAdmin) return 'inicio';
@@ -281,7 +290,7 @@ function wireStickyHScroll(container) {
 }
 
 let lastRoute = null;
-function renderView() {
+async function renderView() {
   hideBootLoader();
   charts.destroyAll();
   closeNav();
@@ -312,7 +321,8 @@ function renderView() {
   } else {
     contentEl.replaceChildren(root);
   }
-  try { VIEWS[route].render(root); }
+  const mod = await resolveView(route);   // lazy p/ admin/equipe (cacheado); síncrono p/ o resto
+  try { mod.render(root); }
   catch (err) { root.innerHTML = `<div class="callout warn"><strong>Erro ao renderizar.</strong><br>${esc(err.message)}</div>`; console.error(err); }
   navEl.querySelectorAll('.nav-item').forEach(el => el.classList.toggle('active', el.dataset.route === route));
   wireStickyHScroll(contentEl);
