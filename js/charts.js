@@ -40,22 +40,22 @@ const barValueLabels = {
         ctx.save();
         ctx.fillStyle = acima;
         if (horizontal) {
-          ctx.font = '700 10px Inter, system-ui, sans-serif';
+          ctx.font = '700 12px Inter, system-ui, sans-serif';
           ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
           let x = bar.x + 6;
           if (x + ctx.measureText(txt).width > chartArea.right) { x = bar.x - 6; ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; }
           ctx.fillText(txt, x, bar.y);
         } else {
           const topGap = bar.y - chartArea.top;
-          let fs = 10; ctx.font = `700 ${fs}px Inter, system-ui, sans-serif`;
+          let fs = 12; ctx.font = `700 ${fs}px Inter, system-ui, sans-serif`;
           let tlen = ctx.measureText(txt).width;            // vira "altura" ao rotacionar -90°
-          while (fs > 7 && tlen > topGap - 4) { fs--; ctx.font = `700 ${fs}px Inter, system-ui, sans-serif`; tlen = ctx.measureText(txt).width; }
+          while (fs > 9 && tlen > topGap - 4) { fs--; ctx.font = `700 ${fs}px Inter, system-ui, sans-serif`; tlen = ctx.measureText(txt).width; }
           ctx.textBaseline = 'middle';
           if (tlen <= topGap - 4) {                          // cabe acima da barra
             ctx.translate(bar.x, bar.y - 3); ctx.rotate(-Math.PI / 2);
             ctx.textAlign = 'left'; ctx.fillStyle = acima;
           } else {                                           // não cabe: dentro do topo (branco)
-            fs = 9; ctx.font = `700 ${fs}px Inter, system-ui, sans-serif`;
+            fs = 11; ctx.font = `700 ${fs}px Inter, system-ui, sans-serif`;
             ctx.translate(bar.x, bar.y + 4); ctx.rotate(-Math.PI / 2);
             ctx.textAlign = 'right'; ctx.fillStyle = '#fff';
           }
@@ -91,8 +91,8 @@ const lineValueLabels = {
         if (val == null) return;
         const txt = compactBRL(val);
         ctx.save();
-        ctx.font = '800 9.5px Inter, system-ui, sans-serif';
-        const w = ctx.measureText(txt).width + 10, h = 16;
+        ctx.font = '800 11.5px Inter, system-ui, sans-serif';
+        const w = ctx.measureText(txt).width + 12, h = 19;
         const x = pt.x, y = Math.max(pt.y - 14, h);
         ctx.fillStyle = isDark() ? 'rgba(15,23,42,.95)' : 'rgba(255,255,255,.95)';
         ctx.strokeStyle = cor; ctx.lineWidth = 1.5;
@@ -118,7 +118,7 @@ const pieLabels = {
       if (frac < 0.05) return;
       const ang = (arc.startAngle + arc.endAngle) / 2, r = (arc.innerRadius + arc.outerRadius) / 2;
       ctx.save();
-      ctx.font = '700 11px Inter, system-ui, sans-serif'; ctx.fillStyle = '#fff';
+      ctx.font = '700 12px Inter, system-ui, sans-serif'; ctx.fillStyle = '#fff';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText(Math.round(frac * 100) + '%', arc.x + Math.cos(ang) * r, arc.y + Math.sin(ang) * r);
       ctx.restore();
@@ -232,14 +232,14 @@ export function metaRealChart(id, labels, meta, real, mostrar = true, atingAcum 
         const { ctx, chartArea, scales } = chart;
         const x = scales.x; if (!x) return;
         ctx.save();
-        ctx.font = '700 10px Inter, system-ui, sans-serif';
+        ctx.font = '700 11.5px Inter, system-ui, sans-serif';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         pctMes.forEach((p, i) => {
           if (p == null || i >= labels.length) return;
           const cx = x.getPixelForValue(i);
           const txt = `${Math.round(p * 100)}%`;
           const cor = p >= 1 ? '#16A34A' : p >= 0.8 ? '#D97706' : '#DC2626';
-          const w = ctx.measureText(txt).width + 12, h = 15, cy = chartArea.bottom + 11;
+          const w = ctx.measureText(txt).width + 12, h = 17, cy = chartArea.bottom + 11;
           ctx.fillStyle = cor; roundRect(ctx, cx - w / 2, cy - h / 2, w, h, 7); ctx.fill();
           ctx.fillStyle = '#fff'; ctx.fillText(txt, cx, cy + 0.5);
         });
