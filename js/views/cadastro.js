@@ -10,14 +10,14 @@ import {
   addCliente, renomearCliente, removerCliente, removerClientes,
   addProduto, renomearProduto, removerProduto, removerProdutos,
   addAno, removerAno, setAnoAtivo, GRUPOS,
-  exportarBackup, restaurarBackup, isAggregated, getSelectedIds, getCompanies, empresaCor,
+  isAggregated, getSelectedIds, getCompanies, empresaCor,
   clearAll, limparCacheLocal, flushLocal,
 } from '../store.js';
 import * as cloud from '../cloud.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
 import { pageHead, options, moneyInput } from '../ui.js';
 import { esc, num, fmtBRL0, anoAtivo, metaArr } from '../util.js';
-import { baixarModelo, importarArquivo, exportarExcel } from '../import.js';
+import { baixarModelo, importarArquivo, exportarExcelTodas } from '../import.js';
 
 // Alça de arrastar (reordenar). chk = seleção múltipla. sectionHead = cabeçalho de card.
 const handle = (id, tbl) => `<td class="col-mini"><span class="drag-handle" draggable="true" data-drag="${id}" data-tbl="${tbl}" title="Arraste para reordenar">⠿</span></td>`;
@@ -166,15 +166,9 @@ export function render(container) {
 
     <details class="card card-pad cad-section">
       <summary>💾 Backup dos seus dados</summary>
-      <div class="hint" style="margin:6px 0 10px">Baixe seus dados em <strong>Excel</strong> (uma aba por tipo: Empresa, Contas, Canais e Metas, Categorias, Orçamento, Vendas e Despesas — só os dados). É legível e dá para <strong>reimportar depois</strong> pela seção "Importar dados por planilha" acima. Refere-se à <strong>empresa atual</strong>.</div>
+      <div class="hint" style="margin:6px 0 10px">Baixe seus dados em <strong>Excel</strong> — <strong>um arquivo por empresa</strong>, com uma aba por tipo (Empresa, Contas, Canais e Metas, Categorias, Orçamento, Vendas e Despesas — só os dados, sem gráficos). É legível e dá para <strong>reimportar depois</strong> pela seção "Importar dados por planilha" acima. Guarde os arquivos em local seguro.</div>
       <div class="card-head-actions">
-        <button class="btn btn-sm btn-primary" data-action="exportar-excel">⬇ Exportar Excel (empresa atual)</button>
-      </div>
-      <div class="hint" style="margin:14px 0 6px">Backup <strong>completo</strong> (todas as empresas, com metas/orçamento/plataformas): arquivo <strong>.json</strong> — restaura tudo exatamente como está. Guarde em local seguro.</div>
-      <div class="card-head-actions">
-        <button class="btn btn-sm" data-action="exportar-backup">⬇ Backup completo (.json)</button>
-        <button class="btn btn-sm" data-action="restaurar-backup">⬆ Restaurar backup (.json)</button>
-        <input type="file" id="backup-file" accept=".json,application/json" style="display:none">
+        <button class="btn btn-sm btn-primary" data-action="exportar-excel">⬇ Exportar Excel (um por empresa)</button>
       </div>
     </details>
 
@@ -230,19 +224,6 @@ function wire(container, ano) {
       t.value = '';
       return;
     }
-    if (t.id === 'backup-file') {
-      const f = t.files && t.files[0]; t.value = '';
-      if (!f) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        let obj; try { obj = JSON.parse(reader.result); } catch (e) { alert('Arquivo de backup inválido (não é um JSON válido).'); return; }
-        if (!confirm('Restaurar este backup vai SUBSTITUIR todos os dados atuais (todas as empresas) pelos do arquivo. Continuar?')) return;
-        try { restaurarBackup(obj); alert('Backup restaurado com sucesso.'); location.hash = '#dashboard'; }
-        catch (e) { alert('Não foi possível restaurar: ' + e.message); }
-      };
-      reader.readAsText(f);
-      return;
-    }
     // Edições NÃO re-renderizam (silent): a tabela larga de metas não volta ao início e o foco/Tab seguem
     // na mesma linha. Os totais derivados (canal e contas) são atualizados na própria célula, sem re-render.
     // (Empresa fica NÃO-silent para o nome refletir no topo na hora.)
@@ -277,22 +258,8 @@ function wire(container, ano) {
     else if (action === 'add-prod') { const c = addProduto({ silent: true }); appendRow(container, '#tb-produtos', produtoRow(c), c.id); }
     else if (action === 'rm-prod') removerProduto(id);
     else if (action === 'baixar-modelo') baixarModelo();
-    else if (action === 'exportar-excel') exportarExcel();
+    else if (action === 'exportar-excel') exportarExcelTodas();
     else if (action === 'importar') container.querySelector('#import-file').click();
-    else if (action === 'restaurar-backup') container.querySelector('#backup-file').click();
-    else if (action === 'exportar-backup') {
-      try {
-        const data = exportarBackup();
-        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const d = new Date();
-        const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const a = document.createElement('a');
-        a.href = url; a.download = `gpr-backup-${ymd}.json`;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1500);
-      } catch (e) { alert('Não foi possível exportar o backup: ' + e.message); }
-    }
     else if (action === 'add-ano') {
       const a = prompt('Adicionar qual ano?', String(ano + 1)); if (!a) return;
       const y = Number(a); if (!y || y < 1900 || y > 3000) { alert('Ano inválido.'); return; }

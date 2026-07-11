@@ -1,7 +1,7 @@
 // import.js — MODELO ÚNICO de planilha (.xlsx) para download + importação (SheetJS / XLSX global).
 // A planilha traz tudo: Empresa, Contas, Canais e Metas, Categorias, Vendas e Despesas.
 // Ao importar, o sistema CRIA UMA EMPRESA NOVA com os dados (não mexe nas existentes).
-import { update, uid, addEmpresaVazia, getState } from './store.js';
+import { update, uid, addEmpresaVazia, getState, getCompaniesFull } from './store.js';
 import { FORMAS_PAGAMENTO, MESES, GRUPOS } from './config.js';
 import { num } from './util.js';
 import { ensureXlsx } from './lazylibs.js';
@@ -51,10 +51,7 @@ export function baixarModelo() {
 // ---- Exportar Excel (empresa ATIVA) — mesmas abas/colunas do importador (round-trip) ----
 // Só os DADOS (sem gráficos/análises): Empresa, Contas, Canais e Metas, Categorias, Orçamento,
 // Vendas e Despesas. Clientes/Produtos/Recebedores são rederivados dos lançamentos ao reimportar.
-export async function exportarExcel() {
-  try { await ensureXlsx(); } catch (e) {}
-  if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
-  const s = getState();
+function _wbEmpresa(s) {
   const n = (x) => Number(x) || 0;
   const br = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
   const catNome = (id) => (s.categorias.find(c => c.id === id) || {}).nome || '';
@@ -83,11 +80,31 @@ export async function exportarExcel() {
   add(shOrc, 'Orçamento', { 'Categoria': '', 'Ano': '', ...meses([]) });
   add(shV, 'Vendas', { 'Data da Venda': '', 'Nº do Pedido': '', 'Canal': '', 'Categoria de Receita': '', 'Produto/Pedido': '', 'Cliente': '', 'Parcela': '', 'Valor': '', 'Data de Vencimento': '', 'Data de Recebimento': '', 'Conta': '', 'Observações': '' });
   add(shD, 'Despesas', { 'Data de Vencimento': '', 'Mês Competência': '', 'Descrição': '', 'Categoria': '', 'Valor': '', 'Recebedor/Fornecedor': '', 'Conta': '', 'Forma de Pagamento': '', 'Pago em': '', 'Observações': '' });
-
+  return wb;
+}
+function _baixarWb(wb, nomeEmp) {
   const d = new Date();
   const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const nome = (s.empresa.nome || 'GPR').replace(/[\\/:*?"<>|]/g, ' ').trim().slice(0, 60);
+  const nome = (nomeEmp || 'GPR').replace(/[\\/:*?"<>|]/g, ' ').trim().slice(0, 60) || 'GPR';
   XLSX.writeFile(wb, `${nome} - GPR ${ymd}.xlsx`);
+}
+// Exporta a empresa ATIVA (ou uma passada) em .xlsx.
+export async function exportarExcel(st) {
+  try { await ensureXlsx(); } catch (e) {}
+  if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
+  const s = st || getState();
+  _baixarWb(_wbEmpresa(s), s.empresa && s.empresa.nome);
+}
+// Exporta TODAS as empresas — um arquivo .xlsx por empresa (downloads escalonados).
+export async function exportarExcelTodas() {
+  try { await ensureXlsx(); } catch (e) {}
+  if (!libOk()) { alert('Biblioteca de planilha não carregou (sem internet?).'); return; }
+  const comps = getCompaniesFull();
+  if (!comps.length) return;
+  for (let i = 0; i < comps.length; i++) {
+    _baixarWb(_wbEmpresa(comps[i]), comps[i].empresa && comps[i].empresa.nome);
+    if (i < comps.length - 1) await new Promise(r => setTimeout(r, 500));   // escalona p/ o browser aceitar múltiplos downloads
+  }
 }
 
 // ---- Importação ----------------------------------------------------------
