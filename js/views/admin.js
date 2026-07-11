@@ -3,6 +3,7 @@
 import { pageHead } from '../ui.js';
 import { esc } from '../util.js';
 import * as cloud from '../cloud.js';
+import { VERSION } from '../version.js';
 
 const WA_URL = 'https://qdioqeejcneijctotyft.supabase.co/functions/v1/whatsapp-webhook';
 const GREEN_URL = 'https://qdioqeejcneijctotyft.supabase.co/functions/v1/green-webhook';
@@ -28,7 +29,7 @@ const LOADERS = { assinantes: loadAssinantes, sistema: loadSistema, planos: load
 
 export function render(container) {
   container.innerHTML = `
-    ${pageHead('GPR Core', 'Administração do SaaS — clique num card para abrir')}
+    ${pageHead('GPR Core', `Administração do SaaS — clique num card para abrir · versão ${esc(VERSION)}`)}
     <div id="gc-metrics" class="grid kpis"></div>
     <div class="gc-cards">
       ${CARDS.map(c => `<button class="gc-card" data-open="${c.k}"><span class="gc-card-ico">${c.ico}</span><span class="gc-card-t">${esc(c.t)}</span><span class="gc-card-d">${esc(c.d)}</span></button>`).join('')}
