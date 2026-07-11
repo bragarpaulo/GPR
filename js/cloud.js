@@ -173,6 +173,27 @@ export async function adminSetUserPassword(userId, password) { return callAdmin(
 export async function adminGenPassword(userId) { return callAdmin('gen_password', { user_id: userId }); }
 export async function adminCreateAdmin(email, password) { return callAdmin('create_admin', { email, password }); }
 export async function adminDeleteUser(userId) { return callAdmin('delete_user', { user_id: userId }); }   // exclui PERMANENTEMENTE (cascade apaga dados/assinatura/equipe)
+
+// ---- Feedback / sugestões (RLS: usuário insere/lê o seu; admin lê/atualiza tudo) ----
+export async function enviarFeedback(tipo, mensagem, tela) {
+  try {
+    const c = client(); if (!c) return { error: 'Sem conexão.' };
+    const u = await currentUser(); if (!u) return { error: 'Faça login para enviar.' };
+    const { error } = await c.from('feedback').insert({ owner_id: u.id, tipo: tipo || 'sugestao', mensagem, tela: tela || null, user_agent: (typeof navigator !== 'undefined' ? navigator.userAgent : '').slice(0, 300) });
+    return error ? { error: error.message } : { ok: true };
+  } catch (e) { return { error: String(e) }; }
+}
+export async function meusFeedbacks() {
+  try { const c = client(); if (!c) return []; const { data } = await c.from('feedback').select('tipo,mensagem,tela,status,created_at').order('created_at', { ascending: false }); return data || []; }
+  catch (e) { return []; }
+}
+export async function adminListFeedback() {
+  const c = client(); if (!c) return [];
+  const { data } = await c.from('feedback').select('id,owner_id,tipo,mensagem,tela,status,created_at').order('created_at', { ascending: false });
+  return data || [];
+}
+export async function adminSetFeedbackStatus(id, status) { const c = client(); const { error } = await c.from('feedback').update({ status }).eq('id', id); return !error; }
+export async function adminDeleteFeedback(id) { const c = client(); const { error } = await c.from('feedback').delete().eq('id', id); return !error; }
 // Cria um ASSINANTE e, opcionalmente, já vincula um plano + status (ex.: grátis com status 'active' = acesso total).
 export async function adminCreateSubscriber(email, password, nome, planCode, status, extras = {}) {
   const r = await callAdmin('create_user', { email, password, nome, setor: extras.setor, instagram: extras.instagram, niche: extras.niche });

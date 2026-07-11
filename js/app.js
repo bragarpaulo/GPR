@@ -39,7 +39,7 @@ document.addEventListener('focusin', (e) => { const t = e.target; if (t && t.cla
 
 const VIEWS = { inicio, dashboard, cadastro, vendas, despesas, dre, dfc, fluxo, orcamento, planxreal, metaxreal, metas };
 // P6: views privilegiadas carregadas sob demanda (import dinâmico), cacheadas após o 1º acesso.
-const LAZY_VIEWS = { admin: () => import('./views/admin.js'), equipe: () => import('./views/equipe.js') };
+const LAZY_VIEWS = { admin: () => import('./views/admin.js'), equipe: () => import('./views/equipe.js'), ajuda: () => import('./views/ajuda.js') };
 const _lazyMod = {};
 const ROUTE_SET = new Set([...Object.keys(VIEWS), ...Object.keys(LAZY_VIEWS)]);
 async function resolveView(route) {

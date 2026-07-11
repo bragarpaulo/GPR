@@ -230,7 +230,7 @@ const ORDEM_MENU = [
   ['inicio', 'Início'], ['dashboard', 'Dashboard'], ['vendas', 'Lançamento de Vendas'], ['despesas', 'Lançamento de Despesas'],
   ['dre', 'DRE (Anual)'], ['dfc', 'DFC (Anual)'], ['fluxo', 'Fluxo de Caixa'],
   ['metas', 'Controle de Metas'], ['metaxreal', 'Meta de Receita × Realizado'], ['planxreal', 'Orçado × Realizado'],
-  ['orcamento', 'Orçamento de Despesas'], ['cadastro', 'Configurações'],
+  ['orcamento', 'Orçamento de Despesas'], ['cadastro', 'Configurações'], ['ajuda', 'Central de Ajuda'],
 ];
 check('Menu: ordem dos ids inalterada', ABAS.map(a => a.id).join(',') === ORDEM_MENU.map(x => x[0]).join(','), `(${ABAS.map(a => a.id).join(',')})`);
 check('Menu: nomes inalterados', ABAS.map(a => a.nome).join('|') === ORDEM_MENU.map(x => x[1]).join('|'));

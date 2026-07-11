@@ -21,9 +21,10 @@ const CARDS = [
   { k: 'green', ico: '💰', t: 'Cobrança (Green)', d: 'Webhook + segredo da Green' },
   { k: 'resend', ico: '✉️', t: 'E-mail (Resend)', d: 'Chave, remetente, URL do app' },
   { k: 'ia', ico: '🤖', t: 'IA & WhatsApp', d: 'Chaves Anthropic/Meta (números ficam no assinante)' },
+  { k: 'feedback', ico: '💬', t: 'Feedback', d: 'Sugestões, melhorias e problemas dos usuários' },
   { k: 'config', ico: '⚙️', t: 'Configurações', d: 'Cancelamento e plano padrão' },
 ];
-const LOADERS = { assinantes: loadAssinantes, sistema: loadSistema, planos: loadPlans, templates: loadTemplates, green: loadGreen, resend: loadResend, ia: loadIa, config: loadConfig };
+const LOADERS = { assinantes: loadAssinantes, sistema: loadSistema, planos: loadPlans, templates: loadTemplates, green: loadGreen, resend: loadResend, ia: loadIa, feedback: loadFeedback, config: loadConfig };
 
 export function render(container) {
   container.innerHTML = `
@@ -354,6 +355,34 @@ async function loadIa(body) {
     <p class="hint" style="margin-top:6px">⚠️ Sem o <b>App Secret</b>, o webhook do WhatsApp REJEITA todas as mensagens (proteção). Preencha antes de ativar a IA no WhatsApp.</p>
     <button class="btn btn-sm btn-primary" id="blk-save" style="margin-top:12px">Salvar</button>`;
   wireSave(body, [], () => ({ anthropic_api_key: body.querySelector('#i-anthropic').value.trim(), ai_model: body.querySelector('#i-model').value.trim(), wa_token: body.querySelector('#i-watoken').value.trim(), wa_phone_id: body.querySelector('#i-waphone').value.trim(), wa_verify_token: body.querySelector('#i-waverify').value.trim(), wa_app_secret: body.querySelector('#i-waappsecret').value.trim() }));
+}
+
+// ---- Feedback dos usuários ----
+async function loadFeedback(body) {
+  const [itens, users] = await Promise.all([cloud.adminListFeedback(), cloud.adminListUsers()]);
+  const emailDe = {}; users.forEach(u => emailDe[u.id] = u.email || u.full_name || '');
+  const TT = { sugestao: '💡 Sugestão', melhoria: '⬆️ Melhoria', problema: '🐞 Problema', duvida: '❓ Dúvida' };
+  const ST = { novo: 'Novo', lido: 'Lido', resolvido: 'Resolvido' };
+  paginar(body, itens, {
+    ph: '🔎 Buscar mensagem/e-mail…', cols: 1,
+    filtro: (f, q) => (f.mensagem || '').toLowerCase().includes(q) || (emailDe[f.owner_id] || '').toLowerCase().includes(q) || (f.tela || '').toLowerCase().includes(q),
+    linha: (f) => {
+      const d = String(f.created_at || '').slice(0, 10).split('-').reverse().join('/');
+      return `<tr class="sub-row"><td>
+        <div><b>${esc(TT[f.tipo] || f.tipo)}</b> <span class="hint">· ${esc(f.tela || 'Geral')} · ${d} · ${esc(emailDe[f.owner_id] || f.owner_id.slice(0, 8))}</span> <span class="emp-tag">${esc(ST[f.status] || f.status)}</span></div>
+        <div style="margin:4px 0 6px">${esc(f.mensagem)}</div>
+        <div class="toolbar" style="gap:6px">
+          <button class="btn btn-sm" data-fbst="lido" data-id="${f.id}">Marcar lido</button>
+          <button class="btn btn-sm btn-primary" data-fbst="resolvido" data-id="${f.id}">Resolver</button>
+          <button class="btn btn-sm" data-fbst="novo" data-id="${f.id}">Reabrir</button>
+          <button class="btn btn-sm" data-fbdel="${f.id}" style="margin-left:auto">Excluir</button>
+        </div></td></tr>`;
+    },
+    wire: (b) => {
+      b.querySelectorAll('[data-fbst]').forEach(btn => btn.onclick = async () => { if (await cloud.adminSetFeedbackStatus(btn.dataset.id, btn.dataset.fbst)) loadFeedback(body); });
+      b.querySelectorAll('[data-fbdel]').forEach(btn => btn.onclick = async () => { if (confirm('Excluir esta mensagem?') && await cloud.adminDeleteFeedback(btn.dataset.fbdel)) loadFeedback(body); });
+    },
+  });
 }
 
 // ---- Configurações ----
