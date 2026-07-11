@@ -62,7 +62,7 @@ const overlay = document.getElementById('sidebar-overlay');
 // ---- Hambúrguer (mobile) ----
 function openNav() { sidebar.classList.add('open'); overlay.classList.add('show'); }
 function closeNav() { sidebar.classList.remove('open'); overlay.classList.remove('show'); }
-document.getElementById('nav-toggle').addEventListener('click', openNav);
+document.getElementById('nav-toggle')?.addEventListener('click', openNav);
 overlay.addEventListener('click', closeNav);
 
 // ---- Recolher/expandir menu lateral (desktop) — persistido ----
@@ -73,7 +73,7 @@ function aplicarNavCollapsed() {
   const b = document.getElementById('btn-collapse');
   if (b) { b.textContent = on ? '» Expandir' : '« Recolher'; b.title = on ? 'Expandir menu' : 'Recolher menu (só ícones)'; }
 }
-document.getElementById('btn-collapse').addEventListener('click', () => {
+document.getElementById('btn-collapse')?.addEventListener('click', () => {
   const on = localStorage.getItem('gpr_nav_collapsed') === '1';
   localStorage.setItem('gpr_nav_collapsed', on ? '0' : '1');
   aplicarNavCollapsed();
@@ -558,4 +558,4 @@ window.__cloud = cloud;
 
 // Rodapé da barra: só Recolher + Sair. "Limpar tudo" e "Sair e limpar dispositivo" migraram p/
 // Configurações (cadastro.js). Tema fica no topo (topbar). btn-collapse é ligado mais acima.
-document.getElementById('btn-sair').addEventListener('click', async () => { if (confirm('Sair da conta?')) { await cloud.signOut(); } });
+document.getElementById('btn-sair')?.addEventListener('click', async () => { if (confirm('Sair da conta?')) { await cloud.signOut(); } });
