@@ -35,7 +35,21 @@ export function render(container) {
       ${CARDS.map(c => `<button class="gc-card" data-open="${c.k}"><span class="gc-card-ico">${c.ico}</span><span class="gc-card-t">${esc(c.t)}</span><span class="gc-card-d">${esc(c.d)}</span></button>`).join('')}
     </div>`;
   loadMetrics(container);
+  loadCommit(container);
   container.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { const c = CARDS.find(x => x.k === b.dataset.open); openModal(`${c.ico} ${c.t}`, LOADERS[c.k]); });
+}
+
+// Busca o commit PUBLICADO (main no GitHub) e anexa ao subtítulo — junto da versão carregada,
+// dá pra conferir se a aba está na versão mais nova. Falha em silêncio (offline/rate limit).
+async function loadCommit(container) {
+  try {
+    const r = await fetch('https://api.github.com/repos/bragarpaulo/GPR/commits/main', { headers: { Accept: 'application/vnd.github+json' } });
+    if (!r.ok) return;
+    const j = await r.json();
+    const sha = String(j.sha || '').slice(0, 7); if (!sha) return;
+    const el = container.querySelector('.page-sub');
+    if (el) el.textContent += ` · commit ${sha}`;
+  } catch (e) {}
 }
 
 function openModal(titulo, loader) {
