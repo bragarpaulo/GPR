@@ -168,6 +168,7 @@ function openSubscriber(u, done) {
             <label class="cfg-field">Setor <input id="sb-setor" type="text" value="${esc(u.setor || '')}"></label>
             <label class="cfg-field">Instagram <input id="sb-insta" type="text" value="${esc(u.instagram || '')}"></label>
           </div>
+          <label class="cfg-field cfg-check" style="margin-top:8px"><input type="checkbox" id="sb-allow-del" ${u.allow_delete_company !== false ? 'checked' : ''}> Permitir excluir empresa nas Configurações (exige a senha do titular)</label>
           <button class="btn btn-sm btn-primary" id="sb-save-dados" style="margin-top:8px">Salvar dados & login</button></div>
         <div class="sub-sec"><div class="ig-sub">Senha</div>
           <div class="toolbar" style="gap:6px"><input id="sb-pw" type="text" placeholder="nova senha (mín. 6)" style="width:200px"><button class="btn btn-sm" id="sb-set-pw">Definir</button><button class="btn btn-sm" id="sb-gen-pw">Gerar aleatória</button><button class="btn btn-sm" id="sb-cred">📧 Enviar login + senha</button><button class="btn btn-sm" id="sb-reset">✉️ Enviar reset</button></div>
@@ -188,7 +189,8 @@ function openSubscriber(u, done) {
       // Dados & login
       body.querySelector('#sb-save-dados').onclick = async () => {
         const btn = body.querySelector('#sb-save-dados'); const novoLogin = body.querySelector('#sb-login').value.trim();
-        let ok = await cloud.adminUpdateProfile(u.id, { full_name: body.querySelector('#sb-nome').value.trim(), setor: body.querySelector('#sb-setor').value.trim(), instagram: body.querySelector('#sb-insta').value.trim() });
+        let ok = await cloud.adminUpdateProfile(u.id, { full_name: body.querySelector('#sb-nome').value.trim(), setor: body.querySelector('#sb-setor').value.trim(), instagram: body.querySelector('#sb-insta').value.trim(), allow_delete_company: body.querySelector('#sb-allow-del').checked });
+        if (ok) u.allow_delete_company = body.querySelector('#sb-allow-del').checked;
         if (novoLogin && novoLogin !== u.email) { const r = await cloud.adminSetUserEmail(u.id, novoLogin); ok = ok && r.ok; if (r.ok) u.email = novoLogin; }
         flash(btn, ok);
       };

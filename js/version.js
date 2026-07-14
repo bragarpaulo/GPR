@@ -1,2 +1,2 @@
 // Gerado automaticamente pelo hook pre-commit — NÃO editar (versão exibida no GPR Core).
-export const VERSION = 'v115 · 11/07/2026 16:49';
+export const VERSION = 'v116 · 13/07/2026 22:21';

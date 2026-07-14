@@ -11,7 +11,7 @@ import {
   addProduto, renomearProduto, removerProduto, removerProdutos,
   addAno, removerAno, setAnoAtivo, GRUPOS,
   isAggregated, getSelectedIds, getCompanies, empresaCor,
-  clearAll, limparCacheLocal, flushLocal,
+  clearAll, limparCacheLocal, flushLocal, removerEmpresa, getActiveId,
 } from '../store.js';
 import * as cloud from '../cloud.js';
 import { TIPOS_CONTA, MESES } from '../config.js';
@@ -115,6 +115,7 @@ export function render(container) {
       <div class="section-title">Anos</div>
       <div class="hint" style="margin-bottom:8px">Cada ano tem lançamentos, metas e orçamento próprios. Clique para ativar; use ✕ para remover.</div>
       <div class="chips">${anosChips}<button class="btn btn-sm btn-primary" data-action="add-ano">+ ano</button></div>
+      <div id="del-emp-slot"></div>
     </div>
 
     <div class="card card-pad cad-section">
@@ -181,6 +182,57 @@ export function render(container) {
     </div>`;
 
   wire(container, ano);
+  wireExcluirEmpresa(container);
+}
+
+// "Excluir esta empresa": só o DONO da conta vê, e só se a opção estiver ligada no perfil
+// (allow_delete_company — o admin controla no GPR Core; default ligado). Exige a SENHA do dono.
+// Obs.: é um gate de consentimento/UX — o dono já pode apagar os próprios dados por outros caminhos.
+async function wireExcluirEmpresa(container) {
+  try {
+    const slot = container.querySelector('#del-emp-slot'); if (!slot) return;
+    const [u, dono, prof] = await Promise.all([cloud.currentUser(), cloud.getMeuDono(), cloud.getProfile()]);
+    if (!u || (dono && dono !== u.id)) return;                       // membro de equipe não exclui
+    if (prof && prof.allow_delete_company === false) return;        // desligado pelo admin
+    if (!container.isConnected) return;                              // a tela mudou enquanto buscava
+    slot.innerHTML = `<div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
+      <button class="btn btn-sm danger" data-action="del-empresa">🗑 Excluir esta empresa…</button>
+      <span class="hint" style="margin-left:8px">Apaga todos os dados desta empresa. Pede a sua senha.</span></div>`;
+  } catch (e) {}
+}
+
+function abrirConfirmaExclusao(email) {
+  const s = getState();
+  const nome = s.empresa.nome || '(sem nome)';
+  const ov = document.createElement('div');
+  ov.className = 'gc-modal-overlay';
+  ov.innerHTML = `<div class="gc-modal" style="max-width:440px"><div class="gc-modal-head"><strong>🗑 Excluir empresa</strong><button class="gc-modal-x" aria-label="Fechar">✕</button></div>
+    <div class="gc-modal-body">
+      <div class="help-box help-atencao" style="margin-top:0">⚠️ <span>Excluir <strong>"${esc(nome)}"</strong> apaga <strong>TODOS</strong> os lançamentos, metas, orçamento e contas desta empresa. <strong>Não pode ser desfeito.</strong></span></div>
+      <label class="cfg-field">Titular da conta <input type="text" value="${esc(email)}" readonly></label>
+      <label class="cfg-field" style="margin-top:10px">Confirme a sua senha <input type="password" id="delx-pw" placeholder="senha do titular" autocomplete="current-password"></label>
+      <div class="toolbar" style="gap:8px;margin-top:14px"><button class="btn" id="delx-cancel">Cancelar</button><button class="btn danger" id="delx-go" style="background:#DC2626;color:#fff;border-color:#DC2626">Excluir definitivamente</button><span id="delx-err" class="frm-err"></span></div>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const close = () => ov.remove();
+  ov.querySelector('.gc-modal-x').onclick = close;
+  ov.querySelector('#delx-cancel').onclick = close;
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  const pw = ov.querySelector('#delx-pw'); pw.focus();
+  const go = ov.querySelector('#delx-go');
+  const err = ov.querySelector('#delx-err');
+  go.onclick = async () => {
+    const senha = pw.value;
+    if (!senha) { err.textContent = 'Digite a sua senha.'; return; }
+    go.disabled = true; go.textContent = 'Verificando…'; err.textContent = '';
+    const { error } = await cloud.signIn(email, senha);   // re-autentica o PRÓPRIO dono (senha errada → error)
+    if (error) { err.textContent = 'Senha incorreta.'; go.disabled = false; go.textContent = 'Excluir definitivamente'; return; }
+    const id = getActiveId();
+    removerEmpresa(id);
+    close();
+    alert(`Empresa "${nome}" excluída.`);
+  };
+  pw.addEventListener('keydown', (e) => { if (e.key === 'Enter') go.click(); });
 }
 
 // Anexa uma linha nova a um tbody (sem re-render), foca e destaca — UX de "adicionar".
@@ -275,6 +327,7 @@ function wire(container, ano) {
       else if (sel.startsWith('cat')) removerCategorias(ids);
     }
     else if (action === 'limpar-tudo') { if (confirm('Apagar TODAS as empresas e dados e começar do zero?\n\nEsta ação não pode ser desfeita.')) clearAll(); }
+    else if (action === 'del-empresa') { cloud.currentUser().then(u => { if (u && u.email) abrirConfirmaExclusao(u.email); }); }
     else if (action === 'sair-limpar') {
       if (!confirm('Sair e APAGAR o cache deste navegador?\n\nSeus dados na nuvem continuam salvos — ao entrar de novo, tudo volta. Use em máquina compartilhada.')) return;
       flushLocal();                                   // sobe o último estado antes de apagar o local

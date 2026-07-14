@@ -324,6 +324,9 @@ export function removerEmpresa(id) {
   root.companies = root.companies.filter(c => c.id !== id);
   if (!root.companies.length) root.companies.push(emptyCompany());
   if (!root.companies.find(c => c.id === root.activeId)) root.activeId = root.companies[0].id;
+  // sem isso, o id excluído ficava pendurado na seleção consolidada (visão de N empresas quebrada)
+  root.selectedIds = (root.selectedIds || []).filter(x => root.companies.some(c => c.id === x));
+  if (!root.selectedIds.length) root.selectedIds = [root.activeId];
   save(); emit();
 }
 // Zera os DADOS de UMA empresa (mantém identidade: id/nome/cnpj/dataInicio/anos). P/ o modo "substituir" do import.

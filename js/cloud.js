@@ -135,7 +135,7 @@ export async function adminMetrics() {
 }
 export async function adminListUsers() {
   const c = client(); if (!c) return [];
-  const { data: profs } = await c.from('profiles').select('id,email,purchase_email,full_name,setor,instagram,is_admin,niche,created_at').order('created_at');
+  const { data: profs } = await c.from('profiles').select('id,email,purchase_email,full_name,setor,instagram,is_admin,niche,allow_delete_company,created_at').order('created_at');
   const { data: subs } = await c.from('subscriptions').select('owner_id,plan_code,status,current_period_end');
   const m = {}; (subs || []).forEach(s => m[s.owner_id] = s);
   return (profs || []).map(p => ({ ...p, sub: m[p.id] || null }));

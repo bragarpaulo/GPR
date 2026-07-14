@@ -290,6 +290,7 @@ function wireStickyHScroll(container) {
 }
 
 let lastRoute = null;
+const _scrollRota = {};   // rota → { sc, fsc, hsc }: cada aba lembra onde estava (só em runtime)
 async function renderView() {
   hideBootLoader();
   charts.destroyAll();
@@ -302,6 +303,7 @@ async function renderView() {
   const sc = scEl.scrollTop;
   const fsc = contentEl.querySelector('.tbl-frozen')?.scrollTop ?? 0;
   const hsc = contentEl.querySelector('.tbl-wide')?.scrollLeft ?? 0;   // scroll horizontal (grade larga: Orçamento etc.)
+  if (!sameRoute && lastRoute) _scrollRota[lastRoute] = { sc, fsc, hsc };   // guarda a posição da aba que está saindo
   const root = document.createElement('div');
   if (isAggregated()) {
     const b = document.createElement('div');
@@ -328,11 +330,11 @@ async function renderView() {
   wireStickyHScroll(contentEl);
   renderTopbar();
   renderPeriodBar(route);
-  scEl.scrollTop = sameRoute ? sc : 0;
-  if (sameRoute) {
-    const fz = contentEl.querySelector('.tbl-frozen'); if (fz) fz.scrollTop = fsc;
-    const tw = contentEl.querySelector('.tbl-wide'); if (tw && hsc) tw.scrollLeft = hsc;
-  }
+  // Mesma rota: preserva a posição atual. TROCA de rota: volta aonde a aba estava (1ª visita = topo).
+  const alvo = sameRoute ? { sc, fsc, hsc } : (_scrollRota[route] || { sc: 0, fsc: 0, hsc: 0 });
+  scEl.scrollTop = alvo.sc;
+  const fz = contentEl.querySelector('.tbl-frozen'); if (fz && alvo.fsc) fz.scrollTop = alvo.fsc;
+  const tw = contentEl.querySelector('.tbl-wide'); if (tw && alvo.hsc) tw.scrollLeft = alvo.hsc;
   lastRoute = route;
 }
 
