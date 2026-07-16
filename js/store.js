@@ -34,6 +34,7 @@ function defaultUI(ano) {
     dashCanalView: 'barras',          // Faturamento por canal: pizza|barras|tabela
     dashCatSort: 'desc', dashCanalSort: 'desc',
     mxrProdView: 'pizza', mxrCliView: 'pizza',   // Meta×Real: vendas por produto/cliente: pizza|barras|tabela
+    dashProdView: 'pizza', dashCliView: 'pizza', // Dashboard: vendas por produto/cliente (fim da tela)
     vendasSort: { campo: '', dir: 'asc' },
     despesasSort: { campo: '', dir: 'asc' },
     chartHide: {},                    // { [idDoGrafico]: true } => rótulos/% ocultos
@@ -95,6 +96,11 @@ function migrarCompany(c) {
   const migFiltro = (f) => { const o = { status: [], busca: '', canal: '', categoria: '', ...(f || {}) }; if (typeof o.status === 'string') o.status = o.status ? [o.status] : []; return o; };
   c.ui.vendasFiltro = migFiltro(c.ui.vendasFiltro);
   c.ui.despesasFiltro = migFiltro(c.ui.despesasFiltro);
+  // Status de VENDA renomeados (Pago→Recebido, À pagar→À receber): filtros salvos guardam o TEXTO —
+  // remapeia os antigos p/ o filtro não "sumir" com as linhas. Despesas mantêm os rótulos originais.
+  const remapV = (t) => (t === 'Pago' ? 'Recebido' : t === 'À pagar' ? 'À receber' : t);
+  c.ui.vendasFiltro.status = (c.ui.vendasFiltro.status || []).map(remapV);
+  if (c.ui.vendasFiltro.cols && c.ui.vendasFiltro.cols.status) c.ui.vendasFiltro.cols.status = remapV(c.ui.vendasFiltro.cols.status);
   if (!Array.isArray(c.ui.periodoMeses)) c.ui.periodoMeses = [];
   if (!e.anos.includes(Number(c.ui.anoAtivo))) c.ui.anoAtivo = anoBase;
   // anosSel: deriva do anoAtivo se ausente; mantém só anos válidos

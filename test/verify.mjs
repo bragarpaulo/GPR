@@ -1,7 +1,7 @@
 // Verificação do motor de cálculo contra invariantes da planilha.
 // Roda: node test/verify.mjs   (a partir da pasta do projeto)
 import { demoData } from '../js/seed.js';
-import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, STATUS_VENDA, ABAS } from '../js/config.js';
+import { DEFAULT_CATEGORIES, DEFAULT_RECEITA_CATEGORIES, STATUS_VENDA, STATUS_DESPESA, ABAS } from '../js/config.js';
 import {
   calcDRE, calcDFC, calcFluxo, calcDashboard, calcMetaxReal, calcPlanxReal, calcControleMetas, vendasDerivadas, despesasDerivadas, calcSeriesMultiAno, calcVendasPorChave, calcProjecao,
 } from '../js/calc.js';
@@ -235,6 +235,13 @@ const ORDEM_MENU = [
 check('Menu: ordem dos ids inalterada', ABAS.map(a => a.id).join(',') === ORDEM_MENU.map(x => x[0]).join(','), `(${ABAS.map(a => a.id).join(',')})`);
 check('Menu: nomes inalterados', ABAS.map(a => a.nome).join('|') === ORDEM_MENU.map(x => x[1]).join('|'));
 check('Menu: Cadastro renomeado para Configurações', ABAS.find(a => a.id === 'cadastro')?.nome === 'Configurações');
+
+console.log('\n== STATUS DE VENDAS RENOMEADOS (Recebido / À receber) ==');
+{
+  check('STATUS_VENDA.CONCLUIDO = "Recebido"', STATUS_VENDA.CONCLUIDO === 'Recebido');
+  check('STATUS_VENDA.PREVISTO = "À receber"', STATUS_VENDA.PREVISTO === 'À receber');
+  check('despesas NÃO mudam (PAGO segue "Pago")', STATUS_DESPESA.PAGO === 'Pago' && STATUS_DESPESA.APAGAR === 'À pagar');
+}
 
 console.log('\n== CAIXA: ENTRADA PELO MÊS DO RECEBIMENTO REAL (não do vencimento) ==');
 {

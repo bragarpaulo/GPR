@@ -74,12 +74,12 @@ export const PERIODOS_RECORRENCIA = [
   { id: 'anual',      nome: 'Anual',      meses: 12 },
 ];
 
-// Rótulos de status (idênticos à planilha).
-// Mesmos rótulos das despesas (mesma lógica em todas as telas): Pago / Vence Hoje / À pagar / Atrasado.
+// Rótulos de status. VENDA fala de RECEBER (dinheiro entrando); DESPESA fala de PAGAR (saindo).
+// A lógica é a mesma nas duas telas — só o vocabulário muda (pedido do Paulo, 13/07/2026).
 export const STATUS_VENDA = {
-  CONCLUIDO: 'Pago',
+  CONCLUIDO: 'Recebido',
   HOJE: 'Vence Hoje',
-  PREVISTO: 'À pagar',
+  PREVISTO: 'À receber',
   ATRASADO: 'Atrasado',
 };
 export const STATUS_DESPESA = {

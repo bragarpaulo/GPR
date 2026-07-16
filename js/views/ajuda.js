@@ -6,7 +6,7 @@ import * as cloud from '../cloud.js';
 
 // --- pequenas ilustrações reutilizáveis (usam o design system do GPR) ---
 const pill = (txt, cls) => `<span class="help-pill ${cls}">${txt}</span>`;
-const statusVenda = `<div class="help-illus help-pills">${pill('✅ Pago', 'ok')}${pill('🟡 Vence hoje', 'warn')}${pill('🔵 À pagar', 'info')}${pill('🔴 Atrasado', 'bad')}</div>`;
+const statusVenda = `<div class="help-illus help-pills">${pill('✅ Recebido / Pago', 'ok')}${pill('🟡 Vence hoje', 'warn')}${pill('🔵 À receber / À pagar', 'info')}${pill('🔴 Atrasado', 'bad')}</div>`;
 const miniKpis = (arr) => `<div class="help-illus help-kpis">${arr.map(([l, v]) => `<div class="help-kpi"><div class="help-kpi-l">${l}</div><div class="help-kpi-v">${v}</div></div>`).join('')}</div>`;
 const dica = (h) => `<div class="help-box help-dica">💡 <span>${h}</span></div>`;
 const regra = (h) => `<div class="help-box help-regra">📐 <span>${h}</span></div>`;
@@ -33,7 +33,7 @@ const SECOES = [
     </div>
     <p>Toda venda e toda despesa tem um <b>status automático</b> conforme as datas:</p>
     ${statusVenda}
-    ${regra('<b>Pago</b> = a data real (Recebimento / "Pago em") foi preenchida. Senão, o status vem do <b>vencimento</b>: futuro → À pagar; hoje → Vence Hoje; passado → Atrasado.')}
+    ${regra('<b>Recebido</b> (venda) / <b>Pago</b> (despesa) = a data real (Recebimento / "Pago em") foi preenchida. Senão, o status vem do <b>vencimento</b>: futuro → À receber (venda) ou À pagar (despesa); hoje → Vence Hoje; passado → Atrasado.')}
     ${regra('<b>Competência não conta o futuro:</b> no ano corrente, sem escolher mês, receita/despesa/lucro/metas somam só <b>até o mês atual</b> — provisões futuras não inflam o resultado. Quer ver o futuro? Selecione o mês na barra do topo.')}` },
 
   { id: 'tela', ico: '🧭', tit: 'A tela: topo, período e menu', html: `
@@ -64,7 +64,7 @@ const SECOES = [
 
   { id: 'vendas', ico: '🛒', tit: 'Lançamento de Vendas', html: `
     <p>Uma linha por venda. As datas definem tudo:</p>
-    ${regra('<b>Data da Venda</b> → mês de competência (aparece na DRE). <b>Vencimento</b> → mês previsto de recebimento. <b>Data Recebimento</b> preenchida → status vira <b>Pago</b> e entra no caixa (DFC/Fluxo).')}
+    ${regra('<b>Data da Venda</b> → mês de competência (aparece na DRE). <b>Vencimento</b> → mês previsto de recebimento. <b>Data Recebimento</b> preenchida → status vira <b>Recebido</b> e entra no caixa (DFC/Fluxo).')}
     ${passos([
       '<b>+ Adicionar linha</b> anexa no fim e foca o cursor — a linha não muda de lugar enquanto você digita.',
       'Produto e Cliente têm <b>autocompletar</b>; nomes novos são cadastrados sozinhos.',
@@ -135,6 +135,14 @@ const stTxt = { novo: 'Enviado', lido: 'Lido', resolvido: 'Resolvido' };
 
 function manualHtml() {
   return `<div class="help-intro card card-pad">
+      <div class="help-intro-h">🎬 Vídeos</div>
+      <p class="hint">Assista antes de começar — é rapidinho e mostra o caminho todo.</p>
+      <div class="help-video-title">👋 Boas-vindas ao GPR</div>
+      <div class="help-video"><iframe src="https://www.youtube-nocookie.com/embed/Jjfvt094laY" title="Vídeo de boas-vindas ao GPR" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+      <div class="help-video-title">📝 Tutorial de preenchimento</div>
+      <div class="help-video"><iframe src="https://www.youtube-nocookie.com/embed/UgDf00_1GKY" title="Tutorial de preenchimento do GPR" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+    </div>
+    <div class="help-intro card card-pad">
       <div class="help-intro-h">📖 Manual do GPR</div>
       <p class="hint">Como funciona cada tela, passo a passo. Clique num item para pular; cada seção abre e fecha.</p>
       ${sumario}
@@ -151,7 +159,7 @@ function feedbackHtml() {
       <label class="cfg-field" style="margin-top:10px">Sobre qual tela? <select id="fb-tela">${telas.map(t => `<option>${t}</option>`).join('')}</select></label>
       <label class="cfg-field" style="margin-top:10px">Sua mensagem
         <textarea id="fb-msg" rows="5" placeholder="Escreva aqui sua sugestão, melhoria ou o problema que encontrou…" style="resize:vertical"></textarea></label>
-      <div class="toolbar" style="gap:8px;margin-top:12px"><button class="btn btn-primary" id="fb-enviar">Enviar</button><span id="fb-out" class="hint"></span></div>
+      <div class="toolbar" style="gap:8px;margin-top:12px"><button class="btn btn-primary" id="fb-enviar">Enviar</button><a class="btn" href="https://wa.me/5545991099764?text=Preciso%20de%20ajuda%20no%20GPR-Financeiro." target="_blank" rel="noopener">💬 Falar com o suporte no WhatsApp</a><span id="fb-out" class="hint"></span></div>
     </div>
     <div class="card card-pad" style="max-width:640px;margin-top:14px">
       <div class="ig-sub">Suas mensagens enviadas</div>

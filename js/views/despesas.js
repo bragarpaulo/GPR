@@ -97,12 +97,17 @@ function renderConsolidado(container, s) {
   const anos = anosSelecionados(s), meses = s.ui.periodoMeses || [];
   let linhas = s.despesas.map(despesaDerivada).filter(d => (!d.mesCompetencia && !d.dataVencimento) ? true : noPeriodoComp(d.mesCompetencia, anos, meses) || (d.dataVencimento && noPeriodoData(d.dataVencimento, anos, meses)));
   if (filtro.status && filtro.status.length) linhas = linhas.filter(d => filtro.status.includes(d.status));
+  if (filtro.venc7) {   // "vence nos próximos 7 dias": não-pagas com vencimento entre hoje e hoje+7
+    const hj = new Date(); hj.setHours(0, 0, 0, 0);
+    const diasAte = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return null; return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - hj) / 86400000); };
+    linhas = linhas.filter(d => { if (d.pago) return false; const n = diasAte(d.dataVencimento); return n !== null && n >= 0 && n <= 7; });
+  }
   if (filtro.busca) { const q = norm(filtro.busca); linhas = linhas.filter(d => norm([d._empNome, d.descricao, d.fornecedor, nomeCategoria(d.categoriaId), d.valor, fmtBRL(d.valor), d.dataVencimento, fmtData(d.dataVencimento), d.status].join(' ')).includes(q)); }
   const total = linhas.reduce((a, d) => a + num(d.valor), 0);
   const rows = linhas.map(rowHtmlRO).join('') || `<tr class="row-vazia"><td colspan="8" class="empty">Nenhuma despesa no período.</td></tr>`;
   container.innerHTML = `
     ${pageHead('Lançamento de Despesas', 'Visão consolidada — somente leitura. Cada linha tem a cor da empresa; selecione 1 empresa no topo para editar.')}
-    ${statusFilterChips(LEGENDA, filtro.status || [])}
+    ${statusFilterChips(LEGENDA, filtro.status || []).replace('</div>', `<button type="button" class="status-pill st-warn ${filtro.venc7 ? 'sel' : ''}" data-venc7 title="Contas NÃO pagas com vencimento de hoje até 7 dias" aria-pressed="${!!filtro.venc7}">⏳ Próx. 7 dias</button></div>`)}
     <div class="toolbar">
       <input id="f-busca" class="search-grow" type="search" placeholder="🔎 Buscar…" value="${esc(filtro.busca)}">
       <div class="spacer"></div>
@@ -117,6 +122,7 @@ function renderConsolidado(container, s) {
     const st = ch.dataset.statusfilter, cur = (getState().ui.despesasFiltro?.status) || [];
     setDespesasFiltro({ status: cur.includes(st) ? cur.filter(x => x !== st) : [...cur, st] });
   }));
+  container.querySelector('[data-venc7]')?.addEventListener('click', () => setDespesasFiltro({ venc7: !(getState().ui.despesasFiltro || {}).venc7 }));
 }
 
 // Filtros por COLUNA (cabeçalho ▾): campo → rótulo + valor da célula (p/ lista de valores únicos).
@@ -152,6 +158,11 @@ export function render(container) {
   if (filtro.categoria) linhas = linhas.filter(d => d.categoriaId === filtro.categoria);
   for (const [campo, val] of Object.entries(cols)) { const def = FILTRAVEIS[campo]; if (def && val) linhas = linhas.filter(d => def.get(d) === val); }
   if (filtro.status && filtro.status.length) linhas = linhas.filter(d => filtro.status.includes(d.status));
+  if (filtro.venc7) {   // "vence nos próximos 7 dias": não-pagas com vencimento entre hoje e hoje+7
+    const hj = new Date(); hj.setHours(0, 0, 0, 0);
+    const diasAte = (iso) => { const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/); if (!m) return null; return Math.round((new Date(+m[1], +m[2] - 1, +m[3]) - hj) / 86400000); };
+    linhas = linhas.filter(d => { if (d.pago) return false; const n = diasAte(d.dataVencimento); return n !== null && n >= 0 && n <= 7; });
+  }
   if (filtro.busca) {
     const q = norm(filtro.busca);
     linhas = linhas.filter(d => norm([d.descricao, d.fornecedor, d.parcela, nomeCategoria(d.categoriaId), nomeConta(d.contaId), d.formaPagamento, d.mesCompetencia, d.dataVencimento, fmtData(d.dataVencimento), d.dataPagamentoReal, fmtData(d.dataPagamentoReal), d.valor, fmtBRL(d.valor), d.status, d.obs].join(' ')).includes(q));
@@ -168,7 +179,7 @@ export function render(container) {
 
   container.innerHTML = `
     ${pageHead('Lançamento de Despesas', 'A linha em edição fica destacada e não se reordena enquanto você digita. Preencha "Pago em" e o status vira Pago. Clique no status p/ filtrar; no 🔁 p/ repetir.')}
-    ${statusFilterChips(LEGENDA, filtro.status || [])}
+    ${statusFilterChips(LEGENDA, filtro.status || []).replace('</div>', `<button type="button" class="status-pill st-warn ${filtro.venc7 ? 'sel' : ''}" data-venc7 title="Contas NÃO pagas com vencimento de hoje até 7 dias" aria-pressed="${!!filtro.venc7}">⏳ Próx. 7 dias</button></div>`)}
     <div class="toolbar">
       ${addBtn}
       <button class="btn btn-sm" data-action="del-sel">🗑 Excluir selecionadas</button>
@@ -248,6 +259,8 @@ function wire(container, compOpts) {
     if (chipCol) { const cur = { ...((getState().ui.despesasFiltro || {}).cols || {}) }; delete cur[chipCol.dataset.limparCol]; setDespesasFiltro({ cols: cur }); return; }
     const pill = ev.target.closest('[data-statusfilter]');
     if (pill) { const cur = [...((getState().ui.despesasFiltro || {}).status || [])]; const v = pill.dataset.statusfilter; const i = cur.indexOf(v); i >= 0 ? cur.splice(i, 1) : cur.push(v); setDespesasFiltro({ status: cur }); return; }
+    const v7 = ev.target.closest('[data-venc7]');
+    if (v7) { setDespesasFiltro({ venc7: !(getState().ui.despesasFiltro || {}).venc7 }); return; }
     const recBtn = ev.target.closest('[data-rec]');
     if (recBtn) {
       const desp = getState().despesas.find(x => x.id === recBtn.dataset.rec);
