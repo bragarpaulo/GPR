@@ -1,0 +1,25 @@
+# WATCHDOG do keep-alive: 2×/semana confere a saúde do ciclo. Se o último ciclo tiver MAIS de 48h,
+# este job FALHA DE PROPÓSITO — e o GitHub envia e-mail de falha ao dono do repo (notificação nativa).
+# Cobre também o caso de o pg_cron interno morrer. (Se o próprio GitHub desativar os crons por ~60 dias
+# sem commits, ele avisa por e-mail nativo também.)
+name: Keep-alive watchdog
+
+on:
+  schedule:
+    - cron: '41 13 * * 1,4'   # segundas e quintas ~10:41 de Brasília
+  workflow_dispatch: {}
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir saúde do ciclo
+        run: |
+          H=$(curl -s -X POST 'https://qdioqeejcneijctotyft.supabase.co/rest/v1/rpc/keepalive_health' \
+            -H 'apikey: sb_publishable_v1Cfux-Urd6Jd2peZBtmEg_BPNc8s4L' \
+            -H 'Authorization: Bearer sb_publishable_v1Cfux-Urd6Jd2peZBtmEg_BPNc8s4L' \
+            -H 'Content-Type: application/json' -d '{}')
+          echo "health: $H"
+          HORAS=$(echo "$H" | python3 -c "import json,sys; h=json.load(sys.stdin); v=h.get('ultimo_ciclo_horas'); print(v if v is not None else 9999)")
+          echo "último ciclo há ${HORAS}h"
+          python3 -c "import sys; sys.exit(0 if float('$HORAS') <= 48 else 1)" || { echo '::error::Keep-alive PARADO há mais de 48h — verifique o Supabase e a aba Actions'; exit 1; }
