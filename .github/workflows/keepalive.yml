@@ -1,0 +1,26 @@
+# Keep-alive do Supabase free: 1 chamada por dia à API REST (RPC keepalive_tick) — o tráfego de API
+# é o que o Supabase considera "atividade" e evita a pausa do projeto. O tick alterna: um dia CRIA a
+# empresa fictícia (dados 2025–2027), no outro REMOVE — escrita/leitura/delete reais no banco.
+# A chave usada é a ANON (publishable) — pública por design, a mesma que está no js/cloud.js do site.
+# Obs.: o GitHub desativa crons de repos sem commits por ~60 dias (manda e-mail avisando; um commit reativa).
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '23 2 * * *'   # todo dia ~23:23 de Brasília (02:23 UTC)
+  workflow_dispatch: {}      # permite rodar manualmente na aba Actions
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar keepalive_tick (REST)
+        run: |
+          RESP=$(curl -s -w '\n%{http_code}' -X POST \
+            'https://qdioqeejcneijctotyft.supabase.co/rest/v1/rpc/keepalive_tick' \
+            -H 'apikey: sb_publishable_v1Cfux-Urd6Jd2peZBtmEg_BPNc8s4L' \
+            -H 'Authorization: Bearer sb_publishable_v1Cfux-Urd6Jd2peZBtmEg_BPNc8s4L' \
+            -H 'Content-Type: application/json' -d '{}')
+          BODY=$(echo "$RESP" | sed '$d'); CODE=$(echo "$RESP" | tail -1)
+          echo "HTTP $CODE — $BODY"
+          [ "$CODE" = "200" ] || exit 1
