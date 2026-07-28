@@ -37,7 +37,7 @@ begin
   select id into adm from profiles where is_admin order by created_at limit 1;
   select count(*) into contas from user_data;   -- leitura em tabela real (atividade de read)
   if n > 0 then
-    delete from keepalive;
+    delete from keepalive where id is not null;   -- WHERE explícito: o safeupdate do PostgREST recusa DELETE sem WHERE
     msg := 'empresa fictícia REMOVIDA (ciclo ok; ' || contas || ' contas com dados)';
   else
     insert into keepalive (owner_id, empresa) values (adm, jsonb_build_object(
