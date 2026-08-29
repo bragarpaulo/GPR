@@ -1,2 +1,2 @@
-// Gerado automaticamente pelo hook pre-commit — NÃO editar (versão exibida no GPR Core).
-export const VERSION = 'v121 · 28/08/2026 21:04';
+// Gerado automaticamente por scripts/bump-version.mjs (hook pre-commit) — NÃO editar à mão.
+export const VERSION = 'v122 · 28/08/2026 21:14';

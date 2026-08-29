@@ -1,10 +1,13 @@
 {
-  "name": "mapa-financeiro-mvp",
+  "name": "gpr",
   "version": "1.0.0",
-  "description": "MVP web do Mapa da Gestão Financeira (HTML/JS, sem backend).",
+  "description": "GPR (Gestão Para Resultado) — SaaS de gestão financeira para pequenos negócios. Front vanilla JS sem build; backend Supabase.",
   "type": "module",
   "private": true,
   "scripts": {
-    "verify": "node test/verify.mjs"
+    "verify": "node test/verify.mjs",
+    "serve": "python3 serve.py",
+    "hook:install": "node scripts/bump-version.mjs --install-hook",
+    "version:print": "node scripts/bump-version.mjs --print"
   }
 }

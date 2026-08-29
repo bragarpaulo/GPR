@@ -150,10 +150,15 @@ dentro dele).
    reverter para 4h, deploys "não chegam" e um app.js velho + index novo pode quebrar listeners (por
    isso os `?.` nos getElementById do boot). O sw.js é um KILL-SWITCH (index desregistra SWs) — não
    reative service worker sem repensar tudo.
-6. **`js/version.js` é gerado por um hook `.git/hooks/pre-commit` LOCAL do Mac do Paulo** (não
-   versionado!). Numa máquina nova/nuvem, os commits NÃO atualizam a versão sozinhos. Recrie o hook
-   (conteúdo: rev-list --count+1 + data → escreve js/version.js e `git add`) ou atualize o arquivo à mão
-   no commit. Se esquecer, o GPR Core mostra versão velha (confunde o diagnóstico de deploy).
+6. **`js/version.js` é carimbado por um hook `pre-commit`, e `.git/hooks/` NÃO é versionado.** Todo clone
+   novo precisa rodar **`npm run hook:install`** (= `node scripts/bump-version.mjs --install-hook`). Sem
+   isso os commits passam sem carimbar e o GPR Core segue mostrando versão velha depois do deploy — o
+   diagnóstico aponta pro lado errado. **A receita antiga (`rev-list --count` + 1) tem um bug em CLONE
+   RASO:** `git clone --depth` (CI, Codespaces, sessão na nuvem) conta só o que veio no clone — nesta
+   sessão deu 50 com produção em v121, ou seja, o hook ingênuo escreveria v51 e a versão **andaria pra
+   trás**. Por isso o script usa `max(commits, versão já gravada) + 1`: em clone completo os dois
+   concordam; em clone raso o arquivo (que é versionado, logo correto no HEAD) manda. O carimbo sai
+   sempre no fuso `America/Sao_Paulo`, pra significar a mesma coisa no Mac e na nuvem.
 7. **Edge Functions**: deploy com `supabase functions deploy <nome> --project-ref qdioqeejcneijctotyft
    --no-verify-jwt`. A flag é OBRIGATÓRIA (preflight OPTIONS sem token; a função valida JWT sozinha).
    Migrations vão pelo endpoint `POST /v1/projects/<ref>/database/query` da Management API (PAT).
@@ -201,7 +206,7 @@ dentro dele).
 | **Chave anon do Supabase** | chamadas REST públicas | pública por design, está em `js/cloud.js` |
 | **Resend API key** | e-mails (pendência §6.2) | ainda não existe — criar em resend.com |
 | **Meta WhatsApp App Secret** | ligar a IA no WhatsApp | Meta for Developers do Paulo |
-| **Hook pre-commit da versão** | carimbar js/version.js | NÃO versionado — recriar (ver Armadilha 6) |
+| **Hook pre-commit da versão** | carimbar js/version.js | RESOLVIDO: reprodutível do repo com `npm run hook:install` (ver Armadilha 6) |
 
 **Rotina de trabalho usada até aqui** (recomendo manter): mudança → `node test/verify.mjs` verde →
 testar a tela REAL logado (nunca só o teste) → commit descritivo em main → push (auto-deploy) →
