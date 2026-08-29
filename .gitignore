@@ -3,3 +3,7 @@ node_modules/
 *.log
 .vscode/
 .idea/
+
+# Cache transitorio da CLI do Supabase (gerado por qualquer `supabase ...` rodado no repo).
+# O linked-project.json ao lado NAO entra aqui: ele e versionado de proposito.
+supabase/.temp/cli-latest
